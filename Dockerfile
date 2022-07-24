@@ -1,5 +1,6 @@
 FROM lsstsqre/newinstall:latest
 USER lsst
+COPY ingest.py ingest.py
 RUN source loadLSST.bash \
   && pip install redis
 RUN source loadLSST.bash \
