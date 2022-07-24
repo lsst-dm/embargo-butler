@@ -3,4 +3,5 @@ USER lsst
 RUN source loadLSST.bash \
   && pip install redis
 RUN source loadLSST.bash \
-  && eups distrib install -t w_latest obs_lsst
+  && week=$(( $(date +%W) + 1 )) \
+  && eups distrib install -t "w_$(date +%Y)_$week" obs_lsst
