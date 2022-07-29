@@ -6,15 +6,20 @@ from exposure_info import ExposureInfo
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
 redis_key = os.environ["REDIS_KEY"]
-redis_queue = f"QUEUE:{redis_key}"
 
 while True:
     objects = r.hkeys(redis_key)
     if len(objects) == 0:
         time.sleep(0.5)
     else:
-        r.rpush(redis_queue, *objects)
+        bucket = None
+        object_list = []
+        for o in objects:
+            e = ExposureInfo(o.decode())
+            # Future optimization: gather all objects in the same bucket
+            r.rpush(f"QUEUE:{bucket}", o)
         r.hdel(redis_key, *objects)
+        # Other stuff can wait until after we have dispatched
         for o in objects:
             e = ExposureInfo(o.decode())
             r.hincrby("RECEIVED", e.obs_day, 1)
