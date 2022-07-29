@@ -23,7 +23,7 @@ while True:
         for o in objects:
             path = o.decode()
             e = ExposureInfo(path)
-            r.hincrby("RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
+            r.hincrby(f"RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
             r.zadd(f"MAXSEQ:{e.bucket}:{e.instrument}",
                 {e.obs_day: int(e.seq_num)}, gt=True)
             r.hset(f"FILE:{path}", "recv_time", str(time.time()))
