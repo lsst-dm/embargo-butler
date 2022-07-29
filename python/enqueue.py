@@ -13,8 +13,8 @@ while True:
     if len(objects) == 0:
         time.sleep(0.5)
     else:
-        r.rpush(redis_queue, objects)
-        r.hdel(objects)
+        r.rpush(redis_queue, *objects)
+        r.hdel(redis_key, *objects)
         for o in objects:
             e = ExposureInfo(o)
             r.hincrby("RECEIVED", e.obs_day, 1)
