@@ -11,12 +11,15 @@ class ExposureInfo:
     path: str
     bucket: str
     instrument: str
-    obs_day: str
-    exp_id: str
     filename: str
+    exp_id: str
     instrument_code: str
     controller: str
+    obs_day: str
     seq_num: str
+    detector_full_name: str
+    detector_raft_name: str
+    detector_name_in_raft: str
 
     def __init__(self, path):
         if path.startswith("s3://"):
@@ -30,10 +33,22 @@ class ExposureInfo:
             self.filename,
         ) = path.split("/")
         (
+            instrument_code,
+            controller,
+            obs_day2,
+            seq_num,
+        ) = exp_id.split("_")
+        (
             self.instrument_code,
             self.controller,
             self.obs_day,
             self.seq_num,
-        ) = exp_id.split("_")
-        if obs_day != self.obs_day:
+            self.detector_raft_name,
+            self.detector_name_in_raft,
+        ) = self.filename.split("_")
+        self.detector_full_name = (f"{self.detector_raft_name}"
+            f"_{self.detector_name_in_raft}")
+        if obs_day != self.obs_day or obs_day2 != self.obs_day:
             log.warn(f"Mismatched observation dates: {path}")
+        if seq_num != self.seq_num:
+            log.warn(f"Mismatched sequence numbers: {path}")
