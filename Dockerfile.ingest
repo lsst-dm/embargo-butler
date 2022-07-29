@@ -5,4 +5,7 @@ RUN source loadLSST.bash \
 RUN source loadLSST.bash \
   && week=$(( $(date +%W) + 1 )) \
   && eups distrib install -t "w_$(date +%Y)_$week" obs_lsst
-COPY ingest.py ingest.py
+COPY python/* ./ingest/
+# environment variables that must be set:
+# REDIS_HOST REDIS_PASSWORD REDIS_QUEUE BUTLER_REPO
+ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]

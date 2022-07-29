@@ -8,7 +8,8 @@ on:
   pull_request:
 
 env:
-  IMAGE_NAME: oga-butler-ingest
+  ENQUEUE_NAME: oga-butler-enqueue
+  INGEST_NAME: oga-butler-ingest
 
 jobs:
   push:
@@ -20,15 +21,27 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Build image
-      run: docker build . --tag $IMAGE_NAME --label "runnumber=${GITHUB_RUN_ID}"
+    - name: Build enqueue image
+      run: |
+        docker build . \
+          -f Dockerfile.enqueue \
+          --tag $ENQUEUE_NAME \
+          --label "runnumber=${GITHUB_RUN_ID}"
+
+    - name: Build ingest image
+      run: |
+        docker build . \
+          -f Dockerfile.ingest \
+          --tag $INGEST_NAME \
+          --label "runnumber=${GITHUB_RUN_ID}"
 
     - name: Log in to GitHub Container Registry
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
-    - name: Push image
+    - name: Push images
       run: |
-       IMAGE_ID=ghcr.io/${{ github.repository_owner }}/$IMAGE_NAME
+       ENQUEUE_ID=ghcr.io/${{ github.repository_owner }}/$ENQUEUE_NAME
+       INGEST_ID=ghcr.io/${{ github.repository_owner }}/$INGEST_NAME
 
        # Strip git ref prefix from version
        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -36,7 +49,10 @@ jobs:
        [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
        # Use Docker `latest` tag convention
        [ "$VERSION" == "main" ] && VERSION=latest
-       echo IMAGE_ID=$IMAGE_ID
+       echo ENQUEUE_ID=$ENQUEUE_ID
+       echo INGEST_ID=$INGEST_ID
        echo VERSION=$VERSION
-       docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
-       docker push $IMAGE_ID:$VERSION
+       docker tag $ENQUEUE_NAME $ENQUEUE_ID:$VERSION
+       docker push $ENQUEUE_ID:$VERSION
+       docker tag $INGEST_NAME $INGEST_ID:$VERSION
+       docker push $INGEST_ID:$VERSION

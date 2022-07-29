@@ -1,0 +1,7 @@
+FROM python:3.10
+RUN pip install redis
+WORKDIR /enqueue
+COPY python/* /enqueue/
+# environment variables that must be set:
+# REDIS_HOST REDIS_PASSWORD REDIS_KEY
+ENTRYPOINT [ "python3", "/enqueue/enqueue.py" ]
