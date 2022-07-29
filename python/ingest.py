@@ -25,7 +25,7 @@ def on_success(datasets):
         logger.info(f"Ingested {dataset.geturl()}")
         e = ExposureInfo(dataset.path)
         r.lrem(worker_queue, 0, e.path)
-        r.inc(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_date}")
+        r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_date}")
         r.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
 
 
