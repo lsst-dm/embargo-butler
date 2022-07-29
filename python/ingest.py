@@ -32,7 +32,7 @@ def on_success(datasets):
 def on_ingest_failure(dataset, exc):
     logger.error(f"Failed to ingest {dataset.geturl()}: {exc}")
     e = ExposureInfo(dataset.path)
-    r.inc(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_date}")
+    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_date}")
     r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
     r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
     if int(r.hget(f"FILE:{e.path}", "ing_fail_count")) > 2:
@@ -42,7 +42,7 @@ def on_ingest_failure(dataset, exc):
 def on_metadata_failure(dataset, exc):
     logger.error(f"Failed to translate metadata for {dataset.geturl()}: {exc}")
     e = ExposureInfo(dataset.path)
-    r.inc(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_date}")
+    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_date}")
     r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
     r.lrem(worker_queue, 0, e.path)
 
