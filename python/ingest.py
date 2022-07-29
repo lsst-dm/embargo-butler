@@ -11,8 +11,7 @@ from exposure_info import ExposureInfo
 
 logging.basicConfig(
         level=logging.DEBUG,
-        format="{levelname} {asctime} {name}"
-            "({MDC[LABEL]})({filename}:{lineno}) - {message}",
+        format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
         style="{")
 logger = logging.Logger(__name__)
 
@@ -30,14 +29,14 @@ def on_success(datasets):
         logger.info(f"Ingested {dataset.geturl()}")
         e = ExposureInfo(dataset.path)
         r.lrem(worker_queue, 0, e.path)
-        r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_date}")
+        r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
         r.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
 
 
 def on_ingest_failure(dataset, exc):
     logger.error(f"Failed to ingest {dataset.geturl()}: {exc}")
     e = ExposureInfo(dataset.path)
-    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_date}")
+    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
     r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
     if int(r.hget(f"FILE:{e.path}", "ing_fail_count")) > 2:
@@ -47,7 +46,7 @@ def on_ingest_failure(dataset, exc):
 def on_metadata_failure(dataset, exc):
     logger.error(f"Failed to translate metadata for {dataset.geturl()}: {exc}")
     e = ExposureInfo(dataset.path)
-    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_date}")
+    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
     r.lrem(worker_queue, 0, e.path)
 

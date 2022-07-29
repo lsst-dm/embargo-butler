@@ -6,8 +6,7 @@ from exposure_info import ExposureInfo
 
 logging.basicConfig(
         level=logging.DEBUG,
-        format="{levelname} {asctime} {name}"
-            "({MDC[LABEL]})({filename}:{lineno}) - {message}",
+        format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
         style="{")
 logger = logging.Logger(__name__)
 
