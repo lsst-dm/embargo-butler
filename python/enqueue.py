@@ -17,12 +17,14 @@ while True:
         for o in objects:
             e = ExposureInfo(o.decode())
             # Future optimization: gather all objects in the same bucket
-            r.rpush(f"QUEUE:{bucket}", o)
+            r.rpush(f"QUEUE:{e.bucket}", o)
         r.hdel(redis_key, *objects)
         # Other stuff can wait until after we have dispatched
         for o in objects:
-            e = ExposureInfo(o.decode())
-            r.hincrby("RECEIVED", e.obs_day, 1)
-            r.zadd("MAXSEQ", {e.obs_day: int(e.seq)}, gt=True)
-            r.hset(f"FILE:{o}", "recv_time", str(time.time()))
-            r.expire(f"FILE:{file}", 7 * 24 * 60 * 60)
+            path = o.decode()
+            e = ExposureInfo(path)
+            r.hincrby("RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
+            r.zadd(f"MAXSEQ:{e.bucket}:{e.instrument}",
+                {e.obs_day: int(e.seq)}, gt=True)
+            r.hset(f"FILE:{path}", "recv_time", str(time.time()))
+            r.expire(f"FILE:{path}", 7 * 24 * 60 * 60)
