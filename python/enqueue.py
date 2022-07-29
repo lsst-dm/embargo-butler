@@ -16,7 +16,7 @@ while True:
         r.rpush(redis_queue, *objects)
         r.hdel(redis_key, *objects)
         for o in objects:
-            e = ExposureInfo(o)
+            e = ExposureInfo(o.decode())
             r.hincrby("RECEIVED", e.obs_day, 1)
             r.zadd("MAXSEQ", {e.obs_day: int(e.seq)}, gt=True)
             r.hset(f"FILE:{o}", "recv_time", str(time.time()))
