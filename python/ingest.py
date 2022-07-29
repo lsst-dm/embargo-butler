@@ -9,6 +9,11 @@ from lsst.utils import doImportType
 from lsst.resources import ResourcePath
 from exposure_info import ExposureInfo
 
+logging.basicConfig(
+        level=logging.DEBUG,
+        format="{levelname} {asctime} {name}"
+            "({MDC[LABEL]})({filename}:{lineno}) - {message}",
+        style="{")
 logger = logging.Logger(__name__)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
@@ -47,6 +52,7 @@ def on_metadata_failure(dataset, exc):
     r.lrem(worker_queue, 0, e.path)
 
 
+logger.info(f"Initializing Butler from {butler_repo}")
 butler = Butler(butler_repo, writeable=True)
 TaskClass = doImportType("lsst.obs.base.RawIngestTask")
 ingestConfig = TaskClass.ConfigClass()
@@ -59,11 +65,12 @@ ingester = TaskClass(
     on_metadata_failure=on_metadata_failure,
 )
 
+logger.info(f"Waiting on {worker_queue}")
 while True:
     if r.llen(worker_queue) > 0:
         blobs = r.lrange(worker_queue, 0, -1)
         resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs
             if b.endswith(b".fits")]
-        print(resources)
+        logger.info(f"Ingesting {resources}")
         ingester.run(resources)
     r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")

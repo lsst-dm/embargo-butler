@@ -1,12 +1,21 @@
+import logging
 import os
 import redis
 import time
 from exposure_info import ExposureInfo
 
+logging.basicConfig(
+        level=logging.DEBUG,
+        format="{levelname} {asctime} {name}"
+            "({MDC[LABEL]})({filename}:{lineno}) - {message}",
+        style="{")
+logger = logging.Logger(__name__)
+
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
 redis_key = os.environ["REDIS_KEY"]
 
+logger.info(f"Waiting on {redis_key}")
 while True:
     objects = r.hkeys(redis_key)
     if len(objects) == 0:
@@ -23,6 +32,7 @@ while True:
         for o in objects:
             path = o.decode()
             e = ExposureInfo(path)
+            logger.info(f"Enqueued {path}")
             r.hincrby(f"RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
             r.zadd(f"MAXSEQ:{e.bucket}:{e.instrument}",
                 {e.obs_day: int(e.seq_num)}, gt=True)
