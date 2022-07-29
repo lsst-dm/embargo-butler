@@ -25,6 +25,6 @@ while True:
             e = ExposureInfo(path)
             r.hincrby("RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
             r.zadd(f"MAXSEQ:{e.bucket}:{e.instrument}",
-                {e.obs_day: int(e.seq)}, gt=True)
+                {e.obs_day: int(e.seq_num)}, gt=True)
             r.hset(f"FILE:{path}", "recv_time", str(time.time()))
             r.expire(f"FILE:{path}", 7 * 24 * 60 * 60)
