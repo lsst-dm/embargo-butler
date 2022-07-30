@@ -19,7 +19,7 @@ for queue in r.scan_iter("WORKER:*"):
     idle = r.object("idletime", queue)
     if idle > 10:
         logger.info(f"Restoring idle queue {queue}")
-        while lmove(queue, redis_key) is not None:
+        while r.lmove(queue, redis_key) is not None:
             continue
     else:
         logger.info(f"Leaving queue {queue}")
