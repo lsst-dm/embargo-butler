@@ -47,5 +47,5 @@ while True:
             r.hincrby(f"RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
             r.zadd(f"MAXSEQ:{e.bucket}:{e.instrument}",
                 {e.obs_day: int(e.seq_num)}, gt=True)
-            r.hset(f"FILE:{path}", "recv_time", str(time.time()))
-            r.expire(f"FILE:{path}", 7 * 24 * 60 * 60)
+            r.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
+            r.expire(f"FILE:{e.path}", 7 * 24 * 60 * 60)
