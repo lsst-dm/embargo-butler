@@ -2,6 +2,7 @@ import logging
 import os
 import redis
 import socket
+import sys
 import time
 
 from lsst.daf.butler import Butler
@@ -14,6 +15,7 @@ logging.basicConfig(
         format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
         style="{")
 logger = logging.Logger(__name__)
+logger.setLevel(logging.DEBUG)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
@@ -37,7 +39,7 @@ def on_success(datasets):
 
 def on_ingest_failure(dataset, exc):
     logger.error(f"Failed to ingest {dataset}: {exc}")
-    print(f"*** Failed to ingest {dataset}")
+    print(f"*** Failed to ingest {dataset}", file=sys.stderr)
     # e = ExposureInfo(dataset.geturl())
     # print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
@@ -48,13 +50,13 @@ def on_ingest_failure(dataset, exc):
 
 
 def on_metadata_failure(dataset, exc):
-    logger.error(f"Failed to translate metadata for {dataset}: {exc}")
-    print(f"*** Failed to translate metadata for {dataset}")
+    logger.error(f"Failed to translate metadata for {type(dataset)}({dataset}): {exc}")
+    print(f"*** Failed to translate metadata for {dataset}", file=sys.stderr)
     # e = ExposureInfo(dataset.geturl())
     # print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
-    # r.lrem(worker_queue, 0, e.path)
+    r.lrem(worker_queue, 0, e.path)
 
 
 logger.info(f"Initializing Butler from {butler_repo}")
@@ -84,8 +86,9 @@ while True:
             else:
                 r.lrem(worker_queue, 0, b)
         logger.info(f"Ingesting {resources}")
+        print("*** Ingesting {resources}", file=sys.stderr)
         try:
             ingester.run(resources)
         except Exception as e:
-            logger.warn(f"Error while ingesting: {e}")
+            logger.error(f"Error while ingesting {resources}: {e}")
     r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
