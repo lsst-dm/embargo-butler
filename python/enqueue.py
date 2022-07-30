@@ -14,6 +14,16 @@ r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
 redis_key = os.environ["REDIS_KEY"]
 
+logger.info(f"Checking for idle queues")
+for queue in r.scan_iter("WORKER:*"):
+    idle = r.object("idletime", queue)
+    if idle > 10:
+        logger.info(f"Restoring idle queue {queue}")
+        while lmove(queue, redis_key) is not None:
+            continue
+    else:
+        logger.info(f"Leaving queue {queue}")
+
 logger.info(f"Waiting on {redis_key}")
 while True:
     objects = r.hkeys(redis_key)
