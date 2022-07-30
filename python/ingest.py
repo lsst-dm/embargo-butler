@@ -36,10 +36,10 @@ def on_success(datasets):
 
 
 def on_ingest_failure(dataset, exc):
-    logger.error(f"Failed to ingest {dataset.geturl()}: {exc}")
-    print(f"*** Failed to ingest {dataset.geturl()}")
-    e = ExposureInfo(dataset.geturl())
-    print(f"*** {e}")
+    logger.error(f"Failed to ingest {dataset}: {exc}")
+    print(f"*** Failed to ingest {dataset}")
+    # e = ExposureInfo(dataset.geturl())
+    # print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
     # r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
@@ -48,10 +48,10 @@ def on_ingest_failure(dataset, exc):
 
 
 def on_metadata_failure(dataset, exc):
-    logger.error(f"Failed to translate metadata for {dataset.geturl()}: {exc}")
-    print(f"*** Failed to translate metadata for {dataset.geturl()}")
-    e = ExposureInfo(dataset.geturl())
-    print(f"*** {e}")
+    logger.error(f"Failed to translate metadata for {dataset}: {exc}")
+    print(f"*** Failed to translate metadata for {dataset}")
+    # e = ExposureInfo(dataset.geturl())
+    # print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
     r.lrem(worker_queue, 0, e.path)
@@ -74,8 +74,13 @@ logger.info(f"Waiting on {worker_queue}")
 while True:
     if r.llen(worker_queue) > 0:
         blobs = r.lrange(worker_queue, 0, -1)
-        resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs
-            if b.endswith(b".fits")]
+        resources = []
+        for b in blobs:
+            # Wait for JSON header files
+            if b.endwith(b".json"):
+                rp = ResourcePath(f"s3://{b.decode()}")
+                # Then ingest the corresponding FITS files
+                resources.append(rp.updatedExtension(".fits"))
         logger.info(f"Ingesting {resources}")
         try:
             ingester.run(resources)
