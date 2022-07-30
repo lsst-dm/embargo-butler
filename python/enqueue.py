@@ -34,9 +34,9 @@ while True:
         bucket = None
         object_list = []
         for o in objects:
-            print(f"*** Processing {o}")
+            print(f"*** Processing {o}", file=sys.stderr)
             e = ExposureInfo(o.decode())
-            print(f"*** {e}")
+            print(f"*** {e}", file=sys.stderr)
             # Future optimization: gather all objects in the same bucket
             r.lpush(f"QUEUE:{e.bucket}", o)
             r.hdel(redis_key, o)
