@@ -19,7 +19,7 @@ for queue in r.scan_iter("WORKER:*"):
     idle = r.object("idletime", queue)
     if idle > 10:
         logger.info(f"Restoring idle queue {queue}")
-        while o := r.lpop(queue) is not None:
+        while (o := r.lpop(queue)) is not None:
             e = ExposureInfo(o.decode())
             r.lpush(f"QUEUE:{e.bucket}", o)
     else:
