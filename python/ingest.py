@@ -27,7 +27,9 @@ worker_queue = f"WORKER:{worker_name}"
 def on_success(datasets):
     for dataset in datasets:
         logger.info(f"Ingested {dataset.geturl()}")
+        print(f"*** Ingested {dataset.geturl()}")
         e = ExposureInfo(dataset.geturl())
+        print(f"*** {e}")
         r.lrem(worker_queue, 0, e.path)
         # r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
         # r.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
@@ -35,7 +37,9 @@ def on_success(datasets):
 
 def on_ingest_failure(dataset, exc):
     logger.error(f"Failed to ingest {dataset.geturl()}: {exc}")
+    print(f"*** Failed to ingest {dataset.geturl()}")
     e = ExposureInfo(dataset.geturl())
+    print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
     # r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
@@ -45,7 +49,9 @@ def on_ingest_failure(dataset, exc):
 
 def on_metadata_failure(dataset, exc):
     logger.error(f"Failed to translate metadata for {dataset.geturl()}: {exc}")
+    print(f"*** Failed to translate metadata for {dataset.geturl()}")
     e = ExposureInfo(dataset.geturl())
+    print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
     r.lrem(worker_queue, 0, e.path)
