@@ -19,8 +19,9 @@ for queue in r.scan_iter("WORKER:*"):
     idle = r.object("idletime", queue)
     if idle > 10:
         logger.info(f"Restoring idle queue {queue}")
-        while r.lmove(queue, redis_key) is not None:
-            continue
+        while o := r.lpop(queue) is not None:
+            e = ExposureInfo(o.decode())
+            r.lpush(f"QUEUE:{e.bucket}", o)
     else:
         logger.info(f"Leaving queue {queue}")
 
@@ -38,7 +39,7 @@ while True:
             print(f"*** {e}")
             # Future optimization: gather all objects in the same bucket
             r.lpush(f"QUEUE:{e.bucket}", o)
-        r.hdel(redis_key, *objects)
+            r.hdel(redis_key, o)
         # Other stuff can wait until after we have dispatched
         for o in objects:
             path = o.decode()
