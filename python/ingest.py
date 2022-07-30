@@ -10,7 +10,7 @@ from lsst.resources import ResourcePath
 from exposure_info import ExposureInfo
 
 logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
         style="{")
 logger = logging.Logger(__name__)
@@ -27,27 +27,27 @@ worker_queue = f"WORKER:{worker_name}"
 def on_success(datasets):
     for dataset in datasets:
         logger.info(f"Ingested {dataset.geturl()}")
-        e = ExposureInfo(dataset.path)
+        e = ExposureInfo(dataset.geturl())
         r.lrem(worker_queue, 0, e.path)
-        r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
-        r.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
+        # r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
+        # r.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
 
 
 def on_ingest_failure(dataset, exc):
     logger.error(f"Failed to ingest {dataset.geturl()}: {exc}")
-    e = ExposureInfo(dataset.path)
-    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
-    r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
-    r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
-    if int(r.hget(f"FILE:{e.path}", "ing_fail_count")) > 2:
-        r.lrem(worker_queue, 0, e.path)
+    e = ExposureInfo(dataset.geturl())
+    # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
+    # r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
+    # r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
+    # if int(r.hget(f"FILE:{e.path}", "ing_fail_count")) > 2:
+    #     r.lrem(worker_queue, 0, e.path)
 
 
 def on_metadata_failure(dataset, exc):
     logger.error(f"Failed to translate metadata for {dataset.geturl()}: {exc}")
-    e = ExposureInfo(dataset.path)
-    r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
-    r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
+    e = ExposureInfo(dataset.geturl())
+    # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
+    # r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
     r.lrem(worker_queue, 0, e.path)
 
 
@@ -71,5 +71,8 @@ while True:
         resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs
             if b.endswith(b".fits")]
         logger.info(f"Ingesting {resources}")
-        ingester.run(resources)
+        try:
+            ingester.run(resources)
+        except Exception as e:
+            logger.warn(f"Error while ingesting: {e}")
     r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
