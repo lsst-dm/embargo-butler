@@ -54,7 +54,7 @@ def on_metadata_failure(dataset, exc):
     # print(f"*** {e}")
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
-    r.lrem(worker_queue, 0, e.path)
+    # r.lrem(worker_queue, 0, e.path)
 
 
 logger.info(f"Initializing Butler from {butler_repo}")
@@ -77,10 +77,12 @@ while True:
         resources = []
         for b in blobs:
             # Wait for JSON header files
-            if b.endwith(b".json"):
+            if b.endswith(b".json"):
                 rp = ResourcePath(f"s3://{b.decode()}")
                 # Then ingest the corresponding FITS files
                 resources.append(rp.updatedExtension(".fits"))
+            else:
+                r.lrem(worker_queue, 0, b)
         logger.info(f"Ingesting {resources}")
         try:
             ingester.run(resources)
