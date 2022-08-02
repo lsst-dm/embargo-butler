@@ -11,9 +11,11 @@ from lsst.resources import ResourcePath
 from exposure_info import ExposureInfo
 
 logging.basicConfig(
-        level=logging.INFO,
-        format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
-        style="{")
+    level=logging.INFO,
+    format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
+    style="{",
+    force=True,
+)
 logger = logging.Logger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -28,9 +30,9 @@ worker_queue = f"WORKER:{worker_name}"
 
 def on_success(datasets):
     for dataset in datasets:
-        logger.info(f"Ingested {dataset.geturl()}")
-        print(f"*** Ingested {dataset.geturl()}")
-        e = ExposureInfo(dataset.geturl())
+        logger.info(f"Ingested {dataset}")
+        print(f"*** Ingested {dataset}")
+        e = ExposureInfo(dataset.path)
         print(f"*** {e}")
         r.lrem(worker_queue, 0, e.path)
         # r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
@@ -89,5 +91,5 @@ while True:
         try:
             ingester.run(resources)
         except Exception as e:
-            logger.error(f"Error while ingesting {resources}: {e}")
+            logger.error(f"Error while ingesting {resources}", exc_info=e)
     r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")

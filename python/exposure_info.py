@@ -24,7 +24,7 @@ class ExposureInfo:
     def __init__(self, path):
         try:
             if path.startswith("s3://"):
-                path = path[len("s3://"):]
+                path = path[len("s3://") :]
             self.path = path
             (
                 self.bucket,
@@ -47,8 +47,7 @@ class ExposureInfo:
                 self.detector_raft_name,
                 self.detector_name_in_raft,
             ) = self.filename.split("_")
-            self.detector_full_name = (f"{self.detector_raft_name}"
-                f"_{self.detector_name_in_raft}")
+            self.detector_full_name = f"{self.detector_raft_name}" f"_{self.detector_name_in_raft}"
             if obs_day != self.obs_day or obs_day2 != self.obs_day:
                 log.warn(f"Mismatched observation dates: {path}")
             if seq_num != self.seq_num:
