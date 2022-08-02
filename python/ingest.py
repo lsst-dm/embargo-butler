@@ -49,9 +49,9 @@ def on_ingest_failure(dataset, exc):
     #     r.lrem(worker_queue, 0, e.path)
 
 
-def on_metadata_failure(path, exc):
+def on_metadata_failure(dataset, exc):
     logger.error(f"Failed to translate metadata for {dataset}: {exc}")
-    e = ExposureInfo(path.geturl())
+    e = ExposureInfo(dataset.geturl())
     print(f"*** {e}", file=sys.stderr)
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
