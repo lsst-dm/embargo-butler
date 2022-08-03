@@ -1,6 +1,7 @@
 import logging
 import os
 import redis
+import sys
 import time
 from exposure_info import ExposureInfo
 
@@ -8,6 +9,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
     style="{",
+    force=True,
 )
 logger = logging.Logger(__name__)
 
