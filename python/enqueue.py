@@ -9,6 +9,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
     style="{",
+    stream=sys.stderr,
     force=True,
 )
 logger = logging.Logger(__name__)
@@ -46,13 +47,14 @@ while True:
         # Other stuff can wait until after we have dispatched
         for o in objects:
             path = o.decode()
-            e = ExposureInfo(path)
-            logger.info(f"Enqueued {path}")
-            r.hincrby(f"RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
-            r.zadd(
-                f"MAXSEQ:{e.bucket}:{e.instrument}",
-                {e.obs_day: int(e.seq_num)},
-                gt=True,
-            )
-            r.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
-            r.expire(f"FILE:{e.path}", 7 * 24 * 60 * 60)
+            if path.endswith(".fits"):
+                e = ExposureInfo(path)
+                logger.info(f"Enqueued {path}")
+                r.hincrby(f"RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
+                r.zadd(
+                    f"MAXSEQ:{e.bucket}:{e.instrument}",
+                    {e.obs_day: int(e.seq_num)},
+                    gt=True,
+                )
+                r.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
+                r.expire(f"FILE:{e.path}", 7 * 24 * 60 * 60)

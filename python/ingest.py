@@ -14,6 +14,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
     style="{",
+    stream=sys.stderr,
     force=True,
 )
 logger = logging.Logger(__name__)
@@ -31,9 +32,9 @@ worker_queue = f"WORKER:{worker_name}"
 def on_success(datasets):
     for dataset in datasets:
         logger.info(f"Ingested {dataset}")
-        print(f"*** Ingested {dataset}")
+        print(f"*** Ingested {dataset}", file=sys.stderr)
         e = ExposureInfo(dataset.path.geturl())
-        print(f"*** {e}")
+        print(f"*** {e}", file=sys.stderr)
         r.lrem(worker_queue, 0, e.path)
         # r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
         # r.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
