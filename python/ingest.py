@@ -32,7 +32,7 @@ def on_success(datasets):
     for dataset in datasets:
         logger.info(f"Ingested {dataset}")
         print(f"*** Ingested {dataset}")
-        e = ExposureInfo(dataset.path)
+        e = ExposureInfo(dataset.path.geturl())
         print(f"*** {e}")
         r.lrem(worker_queue, 0, e.path)
         # r.incr(f"INGEST:{e.bucket}:{e.instrument}:{e.obs_day}")
