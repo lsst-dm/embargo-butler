@@ -84,10 +84,11 @@ while True:
                 resources.append(ResourcePath(f"s3://{b.decode()}"))
             else:
                 r.lrem(worker_queue, 0, b)
-        logger.info(f"Ingesting {resources}")
-        print(f"*** Ingesting {resources}", file=sys.stderr)
-        try:
-            ingester.run(resources)
-        except Exception as e:
-            logger.error(f"Error while ingesting {resources}", exc_info=e)
+        if resources:
+            logger.info(f"Ingesting {resources}")
+            print(f"*** Ingesting {resources}", file=sys.stderr)
+            try:
+                ingester.run(resources)
+            except Exception as e:
+                logger.error(f"Error while ingesting {resources}", exc_info=e)
     r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
