@@ -42,13 +42,13 @@ def on_success(datasets):
 def on_ingest_failure(dataset, exc):
     logger.error(f"Failed to ingest {dataset}: {exc}")
     print(f"*** Failed to ingest {type(dataset)}({dataset}): {exc}", file=sys.stderr)
-    # e = ExposureInfo(dataset.geturl())
-    # print(f"*** {e}")
+    e = ExposureInfo(dataset.geturl())
+    print(f"*** {e}", file=sys.stderr)
     # r.incr(f"FAIL:{e.bucket}:{e.instrument}:{e.obs_day}")
     # r.hset(f"FILE:{e.path}", "last_ing_fail_exc", str(exc))
     # r.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
     # if int(r.hget(f"FILE:{e.path}", "ing_fail_count")) > 2:
-    #     r.lrem(worker_queue, 0, e.path)
+    r.lrem(worker_queue, 0, e.path)
 
 
 def on_metadata_failure(dataset, exc):
@@ -79,11 +79,9 @@ while True:
         blobs = r.lrange(worker_queue, 0, -1)
         resources = []
         for b in blobs:
-            # Wait for JSON header files
-            if b.endswith(b".json"):
-                rp = ResourcePath(f"s3://{b.decode()}")
-                # Then ingest the corresponding FITS files
-                resources.append(rp.updatedExtension(".fits"))
+            # Wait for FITS files
+            if b.endswith(b".fits"):
+                resources.append(ResourcePath(f"s3://{b.decode()}"))
             else:
                 r.lrem(worker_queue, 0, b)
         logger.info(f"Ingesting {resources}")
