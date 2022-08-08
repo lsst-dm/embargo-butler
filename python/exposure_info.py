@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
 __all__ = ("ExposureInfo",)
 
@@ -52,6 +52,6 @@ class ExposureInfo:
                 log.warn(f"Mismatched observation dates: {path}")
             if seq_num != self.seq_num:
                 log.warn(f"Mismatched sequence numbers: {path}")
-        except Exception as e:
+        except Exception:
             log.error(f"Unable to parse: {path}")
             raise

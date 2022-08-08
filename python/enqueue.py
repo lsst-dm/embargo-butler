@@ -1,9 +1,17 @@
 import logging
 import os
-import redis
 import sys
 import time
+
+import redis
 from exposure_info import ExposureInfo
+
+SLEEP_INTERVAL: float = 0.2
+"""Interval in seconds between checks for new objects if none were found
+(`float`)."""
+
+FILE_RETENTION: float = 7 * 24 * 60 * 60
+"""Time in seconds to remember information about specific FITS files."""
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -17,44 +25,87 @@ logger = logging.Logger(__name__)
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
 redis_key = os.environ["REDIS_KEY"]
+# It's possible for more than one enqueue service to be running, especially
+# during upgrades, so define a lock, but use a rapid timeout in case of
+# problems.
+lock = r.lock("ENQUEUE_LOCK", timeout=1)
 
-logger.info(f"Checking for idle queues")
-for queue in r.scan_iter("WORKER:*"):
-    idle = r.object("idletime", queue)
-    if idle > 10:
-        logger.info(f"Restoring idle queue {queue}")
-        while (o := r.lpop(queue)) is not None:
-            e = ExposureInfo(o.decode())
-            r.lpush(f"QUEUE:{e.bucket}", o)
-    else:
-        logger.info(f"Leaving queue {queue}")
 
-logger.info(f"Waiting on {redis_key}")
-while True:
+def enqueue_objects():
+    """Enqueue FITS objects from a Redis hash key onto per-bucket queues.
+
+    Compute the `ExposureInfo` for each FITS object and return the list.
+
+    Returns
+    -------
+    info_list: `list` [`ExposureInfo`]
+    """
     objects = r.hkeys(redis_key)
-    if len(objects) == 0:
-        time.sleep(0.5)
-    else:
-        bucket = None
-        object_list = []
-        for o in objects:
-            print(f"*** Processing {o}", file=sys.stderr)
-            e = ExposureInfo(o.decode())
-            print(f"*** {e}", file=sys.stderr)
-            # Future optimization: gather all objects in the same bucket
-            r.lpush(f"QUEUE:{e.bucket}", o)
-            r.hdel(redis_key, o)
-        # Other stuff can wait until after we have dispatched
+    info_list = []
+    # Use a pipeline for efficiency.
+    with r.pipeline() as pipe:
         for o in objects:
             path = o.decode()
             if path.endswith(".fits"):
                 e = ExposureInfo(path)
-                logger.info(f"Enqueued {path}")
-                r.hincrby(f"RECEIVED:{e.bucket}:{e.instrument}", e.obs_day, 1)
-                r.zadd(
-                    f"MAXSEQ:{e.bucket}:{e.instrument}",
-                    {e.obs_day: int(e.seq_num)},
-                    gt=True,
-                )
-                r.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
-                r.expire(f"FILE:{e.path}", 7 * 24 * 60 * 60)
+                pipe.lpush(f"QUEUE:{e.bucket}", o)
+                pipe.hdel(redis_key, o)
+                print(f"*** Enqueued {path} to {e.bucket}", file=sys.stderr)
+                logger.info(f"Enqueued {path} to {e.bucket}")
+                info_list.append(e)
+        pipe.execute()
+    return info_list
+
+
+def update_stats(info_list):
+    """Update statistics and monitoring information for each exposure.
+
+    Parameters
+    ----------
+    info_list: `list` [`ExposureInfo`]
+    """
+    with r.pipeline() as pipe:
+        max_seqnum = {}
+        for e in info_list:
+            pipe.hincrby(f"REC:{e.bucket}", e.obs_day, 1)
+            bucket_instrument = f"{e.bucket}:{e.instrument}"
+            pipe.hincrby(f"RECINSTR:{bucket_instrument}", e.obs_day, 1)
+            pipe.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
+            pipe.expire(f"FILE:{e.path}", FILE_RETENTION)
+            seqnum_key = f"MAXSEQ:{bucket_instrument}:{e.obs_day}"
+            max_seqnum[seqnum_key] = max(e.seq_num, max_seqnum.get(seqnum_key, 0))
+        pipe.execute()
+
+    for seqnum_key in max_seqnum:
+        with r.pipeline() as pipe:
+            # Retry if max sequence number key was updated before we set it.
+            while True:
+                try:
+                    pipe.watch(seqnum_key)
+                    current = pipe.get(seqnum_key)
+                    pipe.multi()
+                    pipe.set(seqnum_key, max(current, max_seqnum[seqnum_key]))
+                    pipe.execute()
+                    break
+                except redis.WatchError:
+                    continue
+
+
+def main():
+    """Enqueue objects while updating statistics and checking for idle
+    workers."""
+    logger.info(f"Waiting on {redis_key}")
+    while True:
+        while not lock.acquire():
+            pass
+        info_list = enqueue_objects()
+        lock.release()
+        if info_list:
+            # Statistics updates can wait until after we have dispatched.
+            update_stats(info_list)
+        else:
+            time.sleep(SLEEP_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()
