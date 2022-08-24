@@ -19,14 +19,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Dockerfile for ingest service.
+# Dockerfile for idle worker cleanup service.
 
-FROM lsstsqre/newinstall:latest
-USER lsst
-RUN source loadLSST.bash && mamba install redis
-RUN source loadLSST.bash && eups distrib install -t "w_2022_32" obs_lsst
-COPY src/ingest.py src/exposure_info.py ./ingest/
-COPY butler.yaml /home/lsst/repo/butler.yaml
+FROM python:3.10
+RUN pip install redis
+WORKDIR /idle
+COPY src/idle.py /idle/
 # environment variables that must be set:
-# REDIS_HOST REDIS_PASSWORD REDIS_QUEUE BUTLER_REPO
-ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]
+# REDIS_HOST REDIS_PASSWORD
+ENTRYPOINT [ "python3", "/idle/idle.py" ]
