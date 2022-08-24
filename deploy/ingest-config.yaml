@@ -1,0 +1,23 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oga-butler-ingest-config
+data:
+  s3_url: https://minio-ltda01.slac.stanford.edu
+  bts_redis_queue: QUEUE:rubin-bts
+  bts_butler_repo: /repo/base-teststand
+  bts_ccs_redis_queue: QUEUE:rubin-bts-ccs
+  bts_ccs_butler_repo: /repo/base-teststand-ccso
+  slac_ccs_redis_queue: QUEUE:rubin-slac-ccs
+  slac_ccs_butler_repo: /repo/slac-teststand-ccso
+  summit_redis_queue: QUEUE:rubin-summit
+  summit_butler_repo: /repo/main
+  summit_ccs_redis_queue: QUEUE:rubin-summit-ccs
+  summit_ccs_butler_repo: /repo/ccso
+  test_redis_queue: QUEUE:oga-test
+  test_butler_repo: /home/lsst/repo
+  tts_redis_queue: QUEUE:rubin-tts
+  tts_butler_repo: /repo/teststand
+  tts_ccs_redis_queue: QUEUE:rubin-tts-ccs
+  tts_ccs_butler_repo: /repo/teststand-ccso
