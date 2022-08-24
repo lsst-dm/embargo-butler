@@ -22,9 +22,9 @@
 # Dockerfile for enqueue service.
 
 FROM python:3.10
-RUN pip install redis
+RUN pip install redis gunicorn flask
 WORKDIR /enqueue
 COPY src/enqueue.py src/exposure_info.py /enqueue/
 # environment variables that must be set:
-# REDIS_HOST REDIS_PASSWORD REDIS_KEY
-ENTRYPOINT [ "python3", "/enqueue/enqueue.py" ]
+# REDIS_HOST REDIS_PASSWORD NOTIFICATION_SECRET
+ENTRYPOINT [ "gunicorn", "-w", "2", "enqueue:app" ]

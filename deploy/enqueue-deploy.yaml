@@ -24,16 +24,16 @@ spec:
             configMapKeyRef:
               name: oga-butler-redis-common
               key: redis_host
-        - name: REDIS_KEY
-          valueFrom:
-            configMapKeyRef:
-              name: oga-butler-enqueue-config
-              key: redis_key
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: oga-butler-enqueue-secret
               key: redis_password
+        - name: NOTIFICATION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: oga-butler-enqueue-secret
+              key: notification_secret
         resources:
           limits:
             cpu: "1"
