@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: enqueue
-        image: "ghcr.io/ktlim/oga-butler-enqueue:latest"
+        image: "ghcr.io/lsst-dm/oga-butler-enqueue:latest"
         env:
         - name: REDIS_HOST
           valueFrom:
