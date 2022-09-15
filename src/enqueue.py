@@ -97,7 +97,7 @@ def update_stats(info_list):
             pipe.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
             pipe.expire(f"FILE:{e.path}", FILE_RETENTION)
             seqnum_key = f"MAXSEQ:{bucket_instrument}:{e.obs_day}"
-            max_seqnum[seqnum_key] = max(e.seq_num, max_seqnum.get(seqnum_key, 0))
+            max_seqnum[seqnum_key] = max(int(e.seq_num), max_seqnum.get(seqnum_key, 0))
         pipe.execute()
 
     for seqnum_key in max_seqnum:

@@ -1,0 +1,19 @@
+---
+extends: default
+rules:
+  document-start:
+    present: true
+    ignore: |
+      /butler*.yaml
+      /.github/workflows/
+  line-length:
+    max: 132
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+    ignore: |
+      /.github/workflows/lint.yaml
+  truthy:
+    ignore: |
+      /.github/workflows/
+  indentation:
+    indent-sequences: consistent

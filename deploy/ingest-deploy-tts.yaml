@@ -2,21 +2,21 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: oga-butler-ingest-test
+  name: tts-butler-ingest
   labels:
     app: ingest
-    site: test
+    site: tts
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: ingest
-      site: test
+      site: tts
   template:
     metadata:
       labels:
         app: ingest
-        site: test
+        site: tts
     spec:
       initContainers:
       - name: "fix-secret-permissions"
@@ -51,12 +51,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: oga-butler-ingest-config
-              key: test_redis_queue
+              key: tts_redis_queue
         - name: BUTLER_REPO
           valueFrom:
             configMapKeyRef:
               name: oga-butler-ingest-config
-              key: test_butler_repo
+              key: tts_butler_repo
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -76,13 +76,9 @@ spec:
           limits:
             cpu: "1"
         volumeMounts:
-        - mountPath: /repo
-          name: data
         - mountPath: /home/lsst/.lsst
           name: secrets
       volumes:
-      - name: data
-        emptyDir: {}
       - name: secrets
         emptyDir: {}
       - name: db-auth

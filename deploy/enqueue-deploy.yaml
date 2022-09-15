@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -16,23 +17,23 @@ spec:
     spec:
       containers:
       - name: enqueue
-        image: "ghcr.io/ktlim/oga-butler-enqueue:latest"
+        image: "ghcr.io/lsst-dm/oga-butler-enqueue:latest"
         env:
-          - name: REDIS_HOST
-            valueFrom:
-              configMapKeyRef:
-                name: oga-butler-redis-common
-                key: redis_host
-          - name: REDIS_KEY
-            valueFrom:
-              configMapKeyRef:
-                name: oga-butler-enqueue-config
-                key: redis_key
-          - name: REDIS_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: oga-butler-enqueue-secret
-                key: redis_password
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: oga-butler-redis-common
+              key: redis_host
+        - name: REDIS_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: oga-butler-enqueue-config
+              key: redis_key
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oga-butler-enqueue-secret
+              key: redis_password
         resources:
           limits:
             cpu: "1"
