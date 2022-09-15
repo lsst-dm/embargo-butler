@@ -20,7 +20,7 @@ spec:
     spec:
       initContainers:
       - name: "fix-secret-permissions"
-        image: "ghcr.io/lsst-dm/oga-butler-ingest:latest"
+        image: "ghcr.io/lsst-dm/oga-butler-ingest:merge"
         command:
         - "/bin/bash"
         - "-c"
@@ -35,7 +35,7 @@ spec:
           name: secrets
       containers:
       - name: ingest
-        image: "ghcr.io/lsst-dm/oga-butler-ingest:latest"
+        image: "ghcr.io/lsst-dm/oga-butler-ingest:merge"
         env:
         - name: S3_ENDPOINT_URL
           valueFrom:
