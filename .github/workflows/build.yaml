@@ -2,9 +2,9 @@ name: Build OGA Butler ingest container
 on:
   push:
     branches:
-      - main
+    - main
     tags:
-      - v*
+    - v*
   pull_request:
 
 env:
@@ -40,19 +40,19 @@ jobs:
 
     - name: Push images
       run: |
-       ENQUEUE_ID=ghcr.io/${{ github.repository_owner }}/$ENQUEUE_NAME
-       INGEST_ID=ghcr.io/${{ github.repository_owner }}/$INGEST_NAME
+        ENQUEUE_ID=ghcr.io/${{ github.repository_owner }}/$ENQUEUE_NAME
+        INGEST_ID=ghcr.io/${{ github.repository_owner }}/$INGEST_NAME
 
-       # Strip git ref prefix from version
-       VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-       # Strip "v" prefix from tag name
-       [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
-       # Use Docker `latest` tag convention
-       [ "$VERSION" == "main" ] && VERSION=latest
-       echo ENQUEUE_ID=$ENQUEUE_ID
-       echo INGEST_ID=$INGEST_ID
-       echo VERSION=$VERSION
-       docker tag $ENQUEUE_NAME $ENQUEUE_ID:$VERSION
-       docker push $ENQUEUE_ID:$VERSION
-       docker tag $INGEST_NAME $INGEST_ID:$VERSION
-       docker push $INGEST_ID:$VERSION
+        # Strip git ref prefix from version
+        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+        # Strip "v" prefix from tag name
+        [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+        # Use Docker `latest` tag convention
+        [ "$VERSION" == "main" ] && VERSION=latest
+        echo ENQUEUE_ID=$ENQUEUE_ID
+        echo INGEST_ID=$INGEST_ID
+        echo VERSION=$VERSION
+        docker tag $ENQUEUE_NAME $ENQUEUE_ID:$VERSION
+        docker push $ENQUEUE_ID:$VERSION
+        docker tag $INGEST_NAME $INGEST_ID:$VERSION
+        docker push $INGEST_ID:$VERSION
