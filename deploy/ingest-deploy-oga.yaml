@@ -47,11 +47,11 @@ spec:
             configMapKeyRef:
               name: oga-butler-redis-common
               key: redis_host
-        - name: REDIS_QUEUE
+        - name: BUCKET
           valueFrom:
             configMapKeyRef:
               name: oga-butler-ingest-config
-              key: summit_redis_queue
+              key: summit_bucket
         - name: BUTLER_REPO
           valueFrom:
             configMapKeyRef:
