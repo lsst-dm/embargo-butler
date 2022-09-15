@@ -30,5 +30,5 @@ COPY butler.yaml /home/lsst/repo/butler.yaml
 COPY butler-oga.yaml /sdf/group/rubin/repo/oga/butler.yaml
 COPY butler-tts.yaml /sdf/group/rubin/repo/tts/butler.yaml
 # environment variables that must be set:
-# REDIS_HOST REDIS_PASSWORD REDIS_QUEUE BUTLER_REPO
+# REDIS_HOST REDIS_PASSWORD BUCKET BUTLER_REPO
 ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]

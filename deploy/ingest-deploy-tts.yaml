@@ -36,6 +36,7 @@ spec:
       containers:
       - name: ingest
         image: "ghcr.io/lsst-dm/oga-butler-ingest:merge"
+        imagePullPolicy: Always
         env:
         - name: S3_ENDPOINT_URL
           valueFrom:
@@ -47,11 +48,11 @@ spec:
             configMapKeyRef:
               name: oga-butler-redis-common
               key: redis_host
-        - name: REDIS_QUEUE
+        - name: BUCKET
           valueFrom:
             configMapKeyRef:
               name: oga-butler-ingest-config
-              key: tts_redis_queue
+              key: tts_bucket
         - name: BUTLER_REPO
           valueFrom:
             configMapKeyRef:
