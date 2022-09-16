@@ -29,6 +29,10 @@ COPY src/ingest.py src/exposure_info.py ./ingest/
 COPY butler.yaml /home/lsst/repo/butler.yaml
 COPY butler-oga.yaml /sdf/group/rubin/repo/oga/butler.yaml
 COPY butler-tts.yaml /sdf/group/rubin/repo/tts/butler.yaml
+COPY butler-bts.yaml /sdf/group/rubin/repo/bts/butler.yaml
+COPY butler-oga-ccs.yaml /sdf/group/rubin/repo/oga-ccs/butler.yaml
+COPY butler-tts-ccs.yaml /sdf/group/rubin/repo/tts-ccs/butler.yaml
+COPY butler-bts-ccs.yaml /sdf/group/rubin/repo/bts-ccs/butler.yaml
 # environment variables that must be set:
 # REDIS_HOST REDIS_PASSWORD BUCKET BUTLER_REPO
 ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]

@@ -9,12 +9,12 @@ datastore:
       - all
   datastores:
   - cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
-    name: FileDatastore@s3://rubin-tts
+    name: FileDatastore@s3://rubin-bts-ccs
     records:
       table: file_datastore_records
-    root: s3://rubin-tts/
+    root: s3://rubin-bts-ccs/
   - cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
-    name: FileDatastore@/sdf/group/rubin/repo/tts
+    name: FileDatastore@/sdf/group/rubin/repo/bts-ccs
     records:
       table: user_datastore_records
     root: <butlerRoot>
@@ -27,4 +27,4 @@ registry:
     datastores: lsst.daf.butler.registry.bridge.monolithic.MonolithicDatastoreRegistryBridgeManager
     dimensions: lsst.daf.butler.registry.dimensions.static.StaticDimensionRecordStorageManager
     opaque: lsst.daf.butler.registry.opaque.ByNameOpaqueTableStorageManager
-  namespace: tts
+  namespace: bts_ccs

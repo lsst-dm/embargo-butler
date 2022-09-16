@@ -1,0 +1,86 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bts-butler-ingest
+  labels:
+    app: ingest
+    site: bts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ingest
+      site: bts
+  template:
+    metadata:
+      labels:
+        app: ingest
+        site: bts
+    spec:
+      initContainers:
+      - name: "fix-secret-permissions"
+        image: "ghcr.io/lsst-dm/oga-butler-ingest:latest"
+        command:
+        - "/bin/bash"
+        - "-c"
+        - |
+          cp -RL /secrets-raw/* /secrets
+          chmod 0400 /secrets/*
+        volumeMounts:
+        - mountPath: /secrets-raw
+          name: db-auth
+          readOnly: true
+        - mountPath: /secrets
+          name: secrets
+      containers:
+      - name: ingest
+        image: "ghcr.io/lsst-dm/oga-butler-ingest:latest"
+        env:
+        - name: S3_ENDPOINT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: oga-butler-ingest-config
+              key: s3_url
+        - name: REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: oga-butler-redis-common
+              key: redis_host
+        - name: BUCKET
+          valueFrom:
+            configMapKeyRef:
+              name: oga-butler-ingest-config
+              key: bts_bucket
+        - name: BUTLER_REPO
+          valueFrom:
+            configMapKeyRef:
+              name: oga-butler-ingest-config
+              key: bts_butler_repo
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: oga-butler-ingest-secret
+              key: redis_password
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: oga-butler-ingest-secret
+              key: s3_access
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oga-butler-ingest-secret
+              key: s3_key
+        resources:
+          limits:
+            cpu: "1"
+        volumeMounts:
+        - mountPath: /home/lsst/.lsst
+          name: secrets
+      volumes:
+      - name: secrets
+        emptyDir: {}
+      - name: db-auth
+        secret:
+          secretName: oga-butler-ingest-dbauth
