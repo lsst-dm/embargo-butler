@@ -5,19 +5,19 @@ metadata:
   name: oga-butler-ingest-config
 data:
   s3_url: https://minio-ltda01.slac.stanford.edu
-  #  bts_bucket: rubin-bts
-  #  bts_butler_repo: /repo/base-teststand
-  #  bts_ccs_bucket: rubin-bts-ccs
-  #  bts_ccs_butler_repo: /repo/base-teststand-ccso
+  bts_bucket: rubin-bts
+  bts_butler_repo: /sdf/group/rubin/repo/bts
+  bts_ccs_bucket: rubin-bts-ccs
+  bts_ccs_butler_repo: /sdf/group/rubin/repo/bts-ccs
   #  slac_ccs_bucket: rubin-slac-ccs
   #  slac_ccs_butler_repo: /repo/slac-teststand-ccso
   summit_bucket: rubin-summit
   summit_butler_repo: /sdf/group/rubin/repo/oga
-  #  summit_ccs_bucket: rubin-summit-ccs
-  #  summit_ccs_butler_repo: /repo/ccso
+  summit_ccs_bucket: rubin-summit-ccs
+  summit_ccs_butler_repo: /sdf/group/rubin/repo/oga-ccs
   test_bucket: oga-test
   test_butler_repo: /home/lsst/repo
   tts_bucket: rubin-tts
   tts_butler_repo: /sdf/group/rubin/repo/tts
-  #  tts_ccs_bucket: rubin-tts-ccs
-  #  tts_ccs_butler_repo: /repo/teststand-ccso
+  tts_ccs_bucket: rubin-tts-ccs
+  tts_ccs_butler_repo: /sdf/group/rubin/repo/tts-ccs
