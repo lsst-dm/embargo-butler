@@ -12,4 +12,4 @@ registry:
     datastores: lsst.daf.butler.registry.bridge.monolithic.MonolithicDatastoreRegistryBridgeManager
     dimensions: lsst.daf.butler.registry.dimensions.static.StaticDimensionRecordStorageManager
     opaque: lsst.daf.butler.registry.opaque.ByNameOpaqueTableStorageManager
-  namespace: main_20220411
+  namespace: test_oga

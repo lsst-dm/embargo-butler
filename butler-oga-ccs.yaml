@@ -1,23 +1,9 @@
 datastore:
-  cls: lsst.daf.butler.datastores.chainedDatastore.ChainedDatastore
-  datastore_constraints:
-  - constraints:
-      reject:
-      - all
-  - constraints:
-      accept:
-      - all
-  datastores:
-  - cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
-    name: FileDatastore@s3://rubin-summit-ccs
-    records:
-      table: file_datastore_records
-    root: s3://rubin-summit-ccs/
-  - cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
-    name: FileDatastore@/sdf/group/rubin/repo/oga-ccs
-    records:
-      table: user_datastore_records
-    root: <butlerRoot>
+  cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
+  name: FileDatastore@s3://rubin-summit-ccs
+  records:
+    table: file_datastore_records
+  root: s3://rubin-summit-ccs/
 registry:
   db: postgresql://usdf-butler.slac.stanford.edu:5432/lsstdb1
   managers:
