@@ -4,6 +4,8 @@ datastore:
   - constraints:
       reject:
       - all
+      accept:
+      - raw
   - constraints:
       accept:
       - all
