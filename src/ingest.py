@@ -75,7 +75,7 @@ def on_success(datasets):
         with r.pipeline() as pipe:
             pipe.lrem(worker_queue, 0, e.path)
             pipe.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
-            pipe.hincrby(f"INGEST:{e.bucket}:{e.instrument}", "{e.obs_day}", 1)
+            pipe.hincrby(f"INGEST:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
             pipe.execute()
 
 
@@ -96,7 +96,7 @@ def on_ingest_failure(dataset, exc):
     e = ExposureInfo(dataset.files[0].filename.geturl())
     print(f"*** {e}", file=sys.stderr)
     with r.pipeline() as pipe:
-        pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", "{e.obs_day}", 1)
+        pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
         pipe.hset(f"FILE:{e.path}", "ing_fail_exc", str(exc))
         pipe.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
         pipe.execute()
@@ -121,7 +121,7 @@ def on_metadata_failure(dataset, exc):
     e = ExposureInfo(dataset.geturl())
     print(f"*** {e}", file=sys.stderr)
     with r.pipeline() as pipe:
-        pipe.incr(f"FAIL:{e.bucket}:{e.instrument}", "{e.obs_day}", 1)
+        pipe.incr(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
         pipe.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
         pipe.lrem(worker_queue, 0, e.path)
         pipe.execute()
