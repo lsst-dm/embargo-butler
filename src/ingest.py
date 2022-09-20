@@ -86,14 +86,14 @@ def on_ingest_failure(dataset, exc):
 
     Parameters
     ----------
-    dataset: `lsst.resources.ResourcePath`
-        Path that failed ingest.
+    dataset: `lsst.obs.base.ingest.RawFileData`
+        Raw dataset that failed ingest.
     exc: `Exception`
         Exception raised by the ingest failure.
     """
     logger.error(f"Failed to ingest {dataset}: {exc}")
     print(f"*** Failed to ingest {type(dataset)}({dataset}): {exc}", file=sys.stderr)
-    e = ExposureInfo(dataset.geturl())
+    e = ExposureInfo(dataset.files[0].filename.geturl())
     print(f"*** {e}", file=sys.stderr)
     with r.pipeline() as pipe:
         pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", "{e.obs_day}", 1)

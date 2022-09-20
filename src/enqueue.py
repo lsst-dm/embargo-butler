@@ -107,8 +107,12 @@ def update_stats(info_list):
                 try:
                     pipe.watch(seqnum_key)
                     current = pipe.get(seqnum_key)
+                    if current is None:
+                        value = max_seqnum[seqnum_key]
+                    else:
+                        value = max(int(current), max_seqnum[seqnum_key])
                     pipe.multi()
-                    pipe.set(seqnum_key, max(current, max_seqnum[seqnum_key]))
+                    pipe.set(seqnum_key, value)
                     pipe.execute()
                     break
                 except redis.WatchError:
