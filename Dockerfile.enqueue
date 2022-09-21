@@ -27,4 +27,4 @@ WORKDIR /enqueue
 COPY src/enqueue.py src/exposure_info.py /enqueue/
 # environment variables that must be set:
 # REDIS_HOST REDIS_PASSWORD NOTIFICATION_SECRET
-ENTRYPOINT [ "gunicorn", "-w", "2", "enqueue:app" ]
+ENTRYPOINT [ "gunicorn", "-b", "0.0.0.0:8000", "-w", "2", "enqueue:app" ]
