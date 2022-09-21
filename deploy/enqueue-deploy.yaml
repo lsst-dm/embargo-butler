@@ -1,4 +1,22 @@
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oga-butler-enqueue
+  labels:
+    app: enqueue
+  annotations:
+    metallb.universe.tf/address-pool: sdf-services
+spec:
+  type: LoadBalancer
+  ports:
+  - name: enqueue-webhook
+    port: 8080
+    protocol: TCP
+    targetPort: 8000
+  selector:
+    app: enqueue
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,16 +42,16 @@ spec:
             configMapKeyRef:
               name: oga-butler-redis-common
               key: redis_host
-        - name: REDIS_KEY
-          valueFrom:
-            configMapKeyRef:
-              name: oga-butler-enqueue-config
-              key: redis_key
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: oga-butler-enqueue-secret
               key: redis_password
+        - name: NOTIFICATION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: oga-butler-enqueue-secret
+              key: notification_secret
         resources:
           limits:
             cpu: "1"

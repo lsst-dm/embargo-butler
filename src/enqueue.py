@@ -26,13 +26,12 @@ import logging
 import os
 import sys
 import time
+import urllib.parse
 
+from flask import Flask, request
 import redis
 from exposure_info import ExposureInfo
 
-SLEEP_INTERVAL: float = 0.2
-"""Interval in seconds between checks for new objects if none were found
-(`float`)."""
 
 FILE_RETENTION: float = 7 * 24 * 60 * 60
 """Time in seconds to remember information about specific FITS files."""
@@ -48,34 +47,31 @@ logger = logging.Logger(__name__)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
-redis_key = os.environ["REDIS_KEY"]
-# It's possible for more than one enqueue service to be running, especially
-# during upgrades, so define a lock, but use a rapid timeout in case of
-# problems.
-lock = r.lock("ENQUEUE_LOCK", timeout=1)
+notification_secret = os.environ["NOTIFICATION_SECRET"]
 
 
-def enqueue_objects():
-    """Enqueue FITS objects from a Redis hash key onto per-bucket queues.
+def enqueue_objects(objects):
+    """Enqueue FITS objects onto per-bucket queues.
 
     Compute the `ExposureInfo` for each FITS object and return the list.
+
+    Parameters
+    ----------
+    objects: `list` [`str`]
 
     Returns
     -------
     info_list: `list` [`ExposureInfo`]
     """
-    objects = r.hkeys(redis_key)
     info_list = []
     # Use a pipeline for efficiency.
     with r.pipeline() as pipe:
         for o in objects:
-            path = o.decode()
-            if path.endswith(".fits"):
-                e = ExposureInfo(path)
+            if o.endswith(".fits"):
+                e = ExposureInfo(o)
                 pipe.lpush(f"QUEUE:{e.bucket}", o)
-                pipe.hdel(redis_key, o)
-                print(f"*** Enqueued {path} to {e.bucket}", file=sys.stderr)
-                logger.info(f"Enqueued {path} to {e.bucket}")
+                print(f"*** Enqueued {o} to {e.bucket}", file=sys.stderr)
+                logger.info(f"Enqueued {o} to {e.bucket}")
                 info_list.append(e)
         pipe.execute()
     return info_list
@@ -119,21 +115,20 @@ def update_stats(info_list):
                     continue
 
 
-def main():
-    """Enqueue objects while updating statistics and checking for idle
-    workers."""
-    logger.info(f"Waiting on {redis_key}")
-    while True:
-        while not lock.acquire():
-            pass
-        info_list = enqueue_objects()
-        lock.release()
-        if info_list:
-            # Statistics updates can wait until after we have dispatched.
-            update_stats(info_list)
-        else:
-            time.sleep(SLEEP_INTERVAL)
+app = Flask(__name__)
 
 
-if __name__ == "__main__":
-    main()
+@app.post("/notify")
+def notify():
+    object_names = []
+    for r in request.json["Records"]:
+        if r["opaqueData"] != notification_secret:
+            print(f"*** Unrecognized secret {r['opaqueData']}", file=sys.stderr)
+            logger.info(f"Unrecognized secret {r['opaqueData']}")
+            continue
+        object_names.append(
+            r["s3"]["bucket"]["name"] + "/" + urllib.parse.unquote_plus(r["s3"]["object"]["key"])
+        )
+    info_list = enqueue_objects(object_names)
+    update_stats(info_list)
+    return info_list
