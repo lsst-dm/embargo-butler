@@ -131,3 +131,4 @@ def notify():
         )
     info_list = enqueue_objects(object_names)
     update_stats(info_list)
+    return info_list
