@@ -4,7 +4,7 @@ kind: ConfigMap
 metadata:
   name: oga-butler-ingest-config
 data:
-  s3_url: https://minio-ltda01.slac.stanford.edu
+  s3_url: https://s3dfrgw.slac.stanford.edu
   bts_bucket: rubin-bts
   bts_butler_repo: /repo/bts
   summit_bucket: rubin-summit
