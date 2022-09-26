@@ -121,8 +121,8 @@ def on_metadata_failure(dataset, exc):
     e = ExposureInfo(dataset.geturl())
     print(f"*** {e}", file=sys.stderr)
     with r.pipeline() as pipe:
-        pipe.incr(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
-        pipe.hset(f"FILE:{e.path}", "last_md_fail_exc", str(exc))
+        pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
+        pipe.hset(f"FILE:{e.path}", "md_fail_exc", str(exc))
         pipe.lrem(worker_queue, 0, e.path)
         pipe.execute()
 
