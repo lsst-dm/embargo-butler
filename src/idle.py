@@ -62,7 +62,7 @@ def main():
                 bucket = queue.split(":")[1]
                 dest = f"QUEUE:{bucket}"
                 # Since the lmove is atomic, no need to lock.
-                while r.lmove(queue, dest, 0, "RIGHT", "LEFT") is not None:
+                while r.lmove(queue, dest, "RIGHT", "LEFT") is not None:
                     continue
 
 
