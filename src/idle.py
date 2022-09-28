@@ -59,7 +59,7 @@ def main():
             idle = r.object("idletime", queue)
             if idle > IDLE_MAX:
                 logger.info(f"Restoring idle queue {queue} ({idle} sec)")
-                bucket = queue.split(":")[1]
+                bucket = queue.decode().split(":")[1]
                 dest = f"QUEUE:{bucket}"
                 # Since the lmove is atomic, no need to lock.
                 while r.lmove(queue, dest, "RIGHT", "LEFT") is not None:
