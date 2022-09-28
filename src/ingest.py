@@ -29,10 +29,11 @@ import sys
 import time
 
 import redis
-from exposure_info import ExposureInfo
 from lsst.daf.butler import Butler
 from lsst.resources import ResourcePath
 from lsst.utils import doImportType
+
+from exposure_info import ExposureInfo
 
 MAX_FAILURES: int = 3
 """Retry ingests until this many failures (`int`)."""
