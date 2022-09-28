@@ -28,10 +28,10 @@ import sys
 import time
 import urllib.parse
 
-from flask import Flask, request
 import redis
-from exposure_info import ExposureInfo
+from flask import Flask, request
 
+from exposure_info import ExposureInfo
 
 FILE_RETENTION: float = 7 * 24 * 60 * 60
 """Time in seconds to remember information about specific FITS files."""
