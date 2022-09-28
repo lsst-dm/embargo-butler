@@ -10,6 +10,7 @@ on:
 env:
   ENQUEUE_NAME: oga-butler-enqueue
   INGEST_NAME: oga-butler-ingest
+  IDLE_NAME: oga-butler-idle
 
 jobs:
   push:
@@ -35,6 +36,13 @@ jobs:
           --tag $INGEST_NAME \
           --label "runnumber=${GITHUB_RUN_ID}"
 
+    - name: Build idle image
+      run: |
+        docker build . \
+          -f Dockerfile.idle \
+          --tag $IDLE_NAME \
+          --label "runnumber=${GITHUB_RUN_ID}"
+
     - name: Log in to GitHub Container Registry
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
@@ -42,6 +50,7 @@ jobs:
       run: |
         ENQUEUE_ID=ghcr.io/${{ github.repository_owner }}/$ENQUEUE_NAME
         INGEST_ID=ghcr.io/${{ github.repository_owner }}/$INGEST_NAME
+        IDLE_ID=ghcr.io/${{ github.repository_owner }}/$IDLE_NAME
 
         # Strip git ref prefix from version
         VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
@@ -51,8 +60,11 @@ jobs:
         [ "$VERSION" == "main" ] && VERSION=latest
         echo ENQUEUE_ID=$ENQUEUE_ID
         echo INGEST_ID=$INGEST_ID
+        echo IDLE_ID=$IDLE_ID
         echo VERSION=$VERSION
         docker tag $ENQUEUE_NAME $ENQUEUE_ID:$VERSION
         docker push $ENQUEUE_ID:$VERSION
         docker tag $INGEST_NAME $INGEST_ID:$VERSION
         docker push $INGEST_ID:$VERSION
+        docker tag $IDLE_NAME $IDLE_ID:$VERSION
+        docker push $IDLE_ID:$VERSION
