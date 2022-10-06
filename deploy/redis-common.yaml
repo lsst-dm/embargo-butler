@@ -1,7 +1,0 @@
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: oga-butler-redis-common
-data:
-  redis_host: oga-butler-redis
