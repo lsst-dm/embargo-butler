@@ -24,12 +24,13 @@
 FROM lsstsqre/newinstall:latest
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py
-RUN source loadLSST.bash && eups distrib install -t "w_2022_38" obs_lsst
+RUN source loadLSST.bash && eups distrib install -t "w_2022_42" obs_lsst
 COPY src/ingest.py src/exposure_info.py ./ingest/
 COPY butler.yaml /home/lsst/repo/butler.yaml
 COPY butler-oga.yaml /repo/oga/butler.yaml
 COPY butler-tts.yaml /repo/tts/butler.yaml
 COPY butler-bts.yaml /repo/bts/butler.yaml
+COPY butler-sts.yaml /repo/main/butler.yaml
 # environment variables that must be set:
 # REDIS_HOST REDIS_PASSWORD BUCKET BUTLER_REPO
 ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]
