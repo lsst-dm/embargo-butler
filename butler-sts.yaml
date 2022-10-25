@@ -6,10 +6,10 @@ datastore:
 registry:
   db: postgresql://usdf-butler.slac.stanford.edu:5432/lsstdb1
   managers:
-    collections: lsst.daf.butler.registry.collections.nameKey.NameKeyCollectionManager
+    collections: lsst.daf.butler.registry.collections.synthIntKey.SynthIntKeyCollectionManager
     datasets: lsst.daf.butler.registry.datasets.byDimensions.ByDimensionsDatasetRecordStorageManagerUUID
     attributes: lsst.daf.butler.registry.attributes.DefaultButlerAttributeManager
     datastores: lsst.daf.butler.registry.bridge.monolithic.MonolithicDatastoreRegistryBridgeManager
     dimensions: lsst.daf.butler.registry.dimensions.static.StaticDimensionRecordStorageManager
     opaque: lsst.daf.butler.registry.opaque.ByNameOpaqueTableStorageManager
-  namespace: main_20210215
+  namespace: bot_data_w_2021_43
