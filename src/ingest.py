@@ -30,7 +30,7 @@ import time
 
 import redis
 from lsst.daf.butler import Butler
-from lsst.obs.base import RawIngestTask
+from lsst.obs.base import RawIngestTask, DefineVisitsTask
 from lsst.resources import ResourcePath
 
 from exposure_info import ExposureInfo
@@ -142,6 +142,10 @@ def main():
         on_metadata_failure=on_metadata_failure,
     )
 
+    define_visits_config = DefineVisitsTask.ConfigClass()
+    define_visits_config.groupExposures = "one-to-one"
+    visit_definer = DefineVisitsTask(config=define_visits_config, butler=butler)
+
     logger.info(f"Waiting on {worker_queue}")
     while True:
         # Process any entries on the worker queue.
@@ -157,10 +161,17 @@ def main():
             if resources:
                 logger.info(f"Ingesting {resources}")
                 print(f"*** Ingesting {resources}", file=sys.stderr)
+                refs = None
                 try:
-                    ingester.run(resources)
-                except Exception as e:
-                    logger.error(f"Error while ingesting {resources}", exc_info=e)
+                    refs = ingester.run(resources)
+                except Exception:
+                    logger.exception(f"Error while ingesting {resources}")
+                if refs:
+                    try:
+                        ids = [ref.dataId for ref in refs]
+                        visit_definer.run(ids)
+                    except Exception:
+                        logger.exception(f"Error while defining visits for {refs}")
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
         r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
