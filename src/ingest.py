@@ -30,8 +30,8 @@ import time
 
 import redis
 from lsst.daf.butler import Butler
+from lsst.obs.base import RawIngestTask
 from lsst.resources import ResourcePath
-from lsst.utils import doImportType
 
 from exposure_info import ExposureInfo
 
@@ -132,11 +132,10 @@ def main():
     """Ingest FITS files from a Redis queue."""
     logger.info(f"Initializing Butler from {butler_repo}")
     butler = Butler(butler_repo, writeable=True)
-    TaskClass = doImportType("lsst.obs.base.RawIngestTask")
-    ingestConfig = TaskClass.ConfigClass()
-    ingestConfig.transfer = "direct"
-    ingester = TaskClass(
-        config=ingestConfig,
+    ingest_config = RawIngestTask.ConfigClass()
+    ingest_config.transfer = "direct"
+    ingester = RawIngestTask(
+        config=ingest_config,
         butler=butler,
         on_success=on_success,
         on_ingest_failure=on_ingest_failure,
