@@ -43,7 +43,7 @@ logging.basicConfig(
     stream=sys.stderr,
     force=True,
 )
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
@@ -70,8 +70,7 @@ def enqueue_objects(objects):
             if o.endswith(".fits"):
                 e = ExposureInfo(o)
                 pipe.lpush(f"QUEUE:{e.bucket}", o)
-                print(f"*** Enqueued {o} to {e.bucket}", file=sys.stderr)
-                logger.info(f"Enqueued {o} to {e.bucket}")
+                logger.info("Enqueued %s to %s", o, e.bucket)
                 info_list.append(e)
         pipe.execute()
     return info_list
@@ -123,8 +122,7 @@ def notify():
     object_names = []
     for r in request.json["Records"]:
         if r["opaqueData"] != notification_secret:
-            print(f"*** Unrecognized secret {r['opaqueData']}", file=sys.stderr)
-            logger.info(f"Unrecognized secret {r['opaqueData']}")
+            logger.info("Unrecognized secret %s", r["opaqueData"])
             continue
         object_names.append(
             r["s3"]["bucket"]["name"] + "/" + urllib.parse.unquote_plus(r["s3"]["object"]["key"])

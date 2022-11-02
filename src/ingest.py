@@ -45,7 +45,7 @@ logging.basicConfig(
     stream=sys.stderr,
     force=True,
 )
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
@@ -69,10 +69,9 @@ def on_success(datasets):
         The successfully-ingested datasets.
     """
     for dataset in datasets:
-        logger.info(f"Ingested {dataset}")
-        print(f"*** Ingested {dataset}", file=sys.stderr)
+        logger.info("Ingested %s", dataset)
         e = ExposureInfo(dataset.path.geturl())
-        print(f"*** {e}", file=sys.stderr)
+        logger.debug("Exposure %s", e)
         with r.pipeline() as pipe:
             pipe.lrem(worker_queue, 0, e.path)
             pipe.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
@@ -92,10 +91,9 @@ def on_ingest_failure(dataset, exc):
     exc: `Exception`
         Exception raised by the ingest failure.
     """
-    logger.error(f"Failed to ingest {dataset}: {exc}")
-    print(f"*** Failed to ingest {type(dataset)}({dataset}): {exc}", file=sys.stderr)
+    logger.error("Failed to ingest %s: %s", dataset, exc)
     e = ExposureInfo(dataset.files[0].filename.geturl())
-    print(f"*** {e}", file=sys.stderr)
+    logger.debug("Exposure %s", e)
     with r.pipeline() as pipe:
         pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
         pipe.hset(f"FILE:{e.path}", "ing_fail_exc", str(exc))
@@ -118,9 +116,9 @@ def on_metadata_failure(dataset, exc):
         Exception raised by the ingest failure.
     """
 
-    logger.error(f"Failed to translate metadata for {dataset}: {exc}")
+    logger.error("Failed to translate metadata for %s: %s", dataset, exc)
     e = ExposureInfo(dataset.geturl())
-    print(f"*** {e}", file=sys.stderr)
+    logger.debug("Exposure %s", e)
     with r.pipeline() as pipe:
         pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
         pipe.hset(f"FILE:{e.path}", "md_fail_exc", str(exc))
@@ -130,7 +128,7 @@ def on_metadata_failure(dataset, exc):
 
 def main():
     """Ingest FITS files from a Redis queue."""
-    logger.info(f"Initializing Butler from {butler_repo}")
+    logger.info("Initializing Butler from %s", butler_repo)
     butler = Butler(butler_repo, writeable=True)
     ingest_config = RawIngestTask.ConfigClass()
     ingest_config.transfer = "direct"
@@ -146,7 +144,7 @@ def main():
     define_visits_config.groupExposures = "one-to-one"
     visit_definer = DefineVisitsTask(config=define_visits_config, butler=butler)
 
-    logger.info(f"Waiting on {worker_queue}")
+    logger.info("Waiting on %s", worker_queue)
     while True:
         # Process any entries on the worker queue.
         if r.llen(worker_queue) > 0:
@@ -159,19 +157,19 @@ def main():
                 else:
                     r.lrem(worker_queue, 0, b)
             if resources:
-                logger.info(f"Ingesting {resources}")
-                print(f"*** Ingesting {resources}", file=sys.stderr)
+                logger.info("Ingesting %s", resources)
                 refs = None
                 try:
                     refs = ingester.run(resources)
                 except Exception:
-                    logger.exception(f"Error while ingesting {resources}")
+                    logger.exception("Error while ingesting %s", resources)
                 if refs:
                     try:
                         ids = [ref.dataId for ref in refs]
                         visit_definer.run(ids)
+                        logger.info("Defined visits for %s", ids)
                     except Exception:
-                        logger.exception(f"Error while defining visits for {refs}")
+                        logger.exception("Error while defining visits for %s", refs)
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
         r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")

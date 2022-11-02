@@ -44,7 +44,7 @@ logging.basicConfig(
     stream=sys.stderr,
     force=True,
 )
-logger = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
@@ -58,7 +58,7 @@ def main():
         for queue in r.scan_iter("WORKER:*"):
             idle = r.object("idletime", queue)
             if idle > IDLE_MAX:
-                logger.info(f"Restoring idle queue {queue} ({idle} sec)")
+                logger.info("Restoring idle queue %s (%f sec)", queue, idle)
                 bucket = queue.decode().split(":")[1]
                 dest = f"QUEUE:{bucket}"
                 # Since the lmove is atomic, no need to lock.

@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 __all__ = ("ExposureInfo",)
 
-log = logging.Logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -73,9 +73,9 @@ class ExposureInfo:
             ) = self.filename.split("_")
             self.detector_full_name = f"{self.detector_raft_name}" f"_{self.detector_name_in_raft}"
             if obs_day != self.obs_day or obs_day2 != self.obs_day:
-                log.warn(f"Mismatched observation dates: {path}")
+                logger.warn("Mismatched observation dates: %s", path)
             if seq_num != self.seq_num:
-                log.warn(f"Mismatched sequence numbers: {path}")
+                logger.warn("Mismatched sequence numbers: %s", path)
         except Exception:
-            log.error(f"Unable to parse: {path}")
+            logger.exception("Unable to parse: %s", path)
             raise
