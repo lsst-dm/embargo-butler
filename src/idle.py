@@ -38,7 +38,7 @@ IDLE_MAX: float = 10
 (`float`)"""
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
     style="{",
     stream=sys.stderr,
