@@ -54,7 +54,7 @@ def main():
     """Requeue items from idle worker queues."""
     while True:
         time.sleep(IDLE_MAX)
-        logger.info("Checking for idle queues")
+        logger.debug("Checking for idle queues")
         for queue in r.scan_iter("WORKER:*"):
             idle = r.object("idletime", queue)
             if idle > IDLE_MAX:
@@ -63,7 +63,8 @@ def main():
                 dest = f"QUEUE:{bucket}"
                 # Since the lmove is atomic, no need to lock.
                 while r.lmove(queue, dest, "RIGHT", "LEFT") is not None:
-                    continue
+                    pass
+                logger.info("Done restoring idle queue %s", queue)
 
 
 if __name__ == "__main__":
