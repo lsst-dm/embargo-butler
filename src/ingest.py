@@ -1,4 +1,4 @@
-# This file is part of oga_butler.
+# This file is part of embargo_butler.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -29,8 +29,9 @@ import sys
 import time
 
 import redis
+import requests
 from lsst.daf.butler import Butler
-from lsst.obs.base import RawIngestTask, DefineVisitsTask
+from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
 
 from exposure_info import ExposureInfo
@@ -53,6 +54,7 @@ r.auth(os.environ["REDIS_PASSWORD"])
 bucket = os.environ["BUCKET"]
 redis_queue = f"QUEUE:{bucket}"
 butler_repo = os.environ["BUTLER_REPO"]
+webhook_uri = os.environ.get("WEBHOOK_URI", None)
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
@@ -77,6 +79,9 @@ def on_success(datasets):
             pipe.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
             pipe.hincrby(f"INGEST:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
             pipe.execute()
+        if webhook_uri:
+            resp = requests.post(webhook_uri, json=e.__dict__, timeout=0.5)
+            logger.info("Webhook response: %s", resp)
 
 
 def on_ingest_failure(dataset, exc):
