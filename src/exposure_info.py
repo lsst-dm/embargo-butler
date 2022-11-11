@@ -71,7 +71,8 @@ class ExposureInfo:
                 self.detector_raft_name,
                 self.detector_name_in_raft,
             ) = self.filename.split("_")
-            self.detector_full_name = f"{self.detector_raft_name}" f"_{self.detector_name_in_raft}"
+            self.detector_name_in_raft.removesuffix(".fits")
+            self.detector_full_name = f"{self.detector_raft_name}_{self.detector_name_in_raft}"
             if obs_day != self.obs_day or obs_day2 != self.obs_day:
                 logger.warn("Mismatched observation dates: %s", path)
             if seq_num != self.seq_num:
