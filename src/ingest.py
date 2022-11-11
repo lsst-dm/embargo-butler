@@ -1,4 +1,4 @@
-# This file is part of oga_butler.
+# This file is part of embargo_butler.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
