@@ -24,7 +24,7 @@
 FROM lsstsqre/newinstall:latest
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py
-RUN source loadLSST.bash && eups distrib install -t "w_2022_44" obs_lsst
+RUN source loadLSST.bash && eups distrib install -t "w_2023_03" obs_lsst
 COPY src/ingest.py src/exposure_info.py ./ingest/
 COPY butler.yaml /home/lsst/repo/butler.yaml
 COPY butler-oga.yaml /repo/oga/butler.yaml
