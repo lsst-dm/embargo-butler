@@ -24,6 +24,7 @@ Enqueue service to post notifications to per-bucket queues.
 """
 import logging
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -70,8 +71,13 @@ def enqueue_objects(objects):
             if o.endswith(".fits"):
                 e = ExposureInfo(o)
                 pipe.lpush(f"QUEUE:{e.bucket}", o)
-                logger.info("Enqueued %s to %s", o, e.bucket)
+                logger.info("Enqueued %s to QUEUE:%s", o, e.bucket)
                 info_list.append(e)
+            elif o.endswith("_detectors.json"):
+                if (m := re.match(r"(s3://)?(\S+?)/", o)):
+                    bucket = m.group(2)
+                    pipe.lpush(f"DETQUEUE:{bucket}", o)
+                    logger.info("Enqueued %s to DETQUEUE:%s", o, bucket)
         pipe.execute()
     return info_list
 
