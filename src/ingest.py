@@ -24,6 +24,7 @@ Service to ingest images into per-bucket Butler repos.
 """
 import logging
 import os
+import re
 import socket
 import sys
 import time
@@ -53,6 +54,14 @@ r.auth(os.environ["REDIS_PASSWORD"])
 bucket = os.environ["BUCKET"]
 redis_queue = f"QUEUE:{bucket}"
 butler_repo = os.environ["BUTLER_REPO"]
+logspec = os.environ.get("LOG_CONFIG")
+
+if logspec:
+    # One-line "component=LEVEL" logging specification parser.
+    for component, level in re.findall(r"(?:([\w.]*)=)?(\w+)", logspec):
+        if component == ".":
+            component = "lsst"
+        logging.getLogger(component).setLevel(level)
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"

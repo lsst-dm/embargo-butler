@@ -24,6 +24,7 @@ Enqueue service to post notifications to per-bucket queues.
 """
 import logging
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -48,6 +49,14 @@ logger = logging.getLogger(__name__)
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
 notification_secret = os.environ["NOTIFICATION_SECRET"]
+logspec = os.environ.get("LOG_CONFIG")
+
+if logspec:
+    # One-line "component=LEVEL" logging specification parser.
+    for component, level in re.findall(r"(?:([\w.]*)=)?(\w+)", logspec):
+        if component == ".":
+            component = "lsst"
+        logging.getLogger(component).setLevel(level)
 
 
 def enqueue_objects(objects):

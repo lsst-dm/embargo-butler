@@ -28,6 +28,7 @@ items when a deployment is restarted.
 """
 import logging
 import os
+import re
 import sys
 import time
 
@@ -48,6 +49,14 @@ logger = logging.getLogger(__name__)
 
 r = redis.Redis(host=os.environ["REDIS_HOST"])
 r.auth(os.environ["REDIS_PASSWORD"])
+logspec = os.environ.get("LOG_CONFIG")
+
+if logspec:
+    # One-line "component=LEVEL" logging specification parser.
+    for component, level in re.findall(r"(?:([\w.]*)=)?(\w+)", logspec):
+        if component == ".":
+            component = "lsst"
+        logging.getLogger(component).setLevel(level)
 
 
 def main():
