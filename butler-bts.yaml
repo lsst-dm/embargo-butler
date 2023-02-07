@@ -12,5 +12,6 @@ registry:
     datasets: lsst.daf.butler.registry.datasets.byDimensions.ByDimensionsDatasetRecordStorageManagerUUID
     datastores: lsst.daf.butler.registry.bridge.monolithic.MonolithicDatastoreRegistryBridgeManager
     dimensions: lsst.daf.butler.registry.dimensions.static.StaticDimensionRecordStorageManager
+    obscore: lsst.daf.butler.registry.obscore._manager.ObsCoreLiveTableManager
     opaque: lsst.daf.butler.registry.opaque.ByNameOpaqueTableStorageManager
   namespace: bts
