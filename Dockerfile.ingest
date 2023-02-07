@@ -1,4 +1,4 @@
-# This file is part of oga_butler.
+# This file is part of embargo_butler.
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -27,7 +27,7 @@ RUN source loadLSST.bash && mamba install redis-py rucio-clients
 RUN source loadLSST.bash && eups distrib install -t "d_2023_05_24" obs_lsst
 COPY src/ingest.py src/exposure_info.py src/utils.py ./ingest/
 COPY butler.yaml /home/lsst/repo/butler.yaml
-COPY butler-oga.yaml /repo/oga/butler.yaml
+COPY butler-embargo.yaml /repo/embargo/butler.yaml
 COPY butler-tts.yaml /repo/tts/butler.yaml
 COPY butler-bts.yaml /repo/bts/butler.yaml
 COPY butler-sts.yaml /repo/ir2/butler.yaml

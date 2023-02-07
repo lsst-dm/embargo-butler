@@ -1,4 +1,4 @@
-name: Build OGA Butler ingest container
+name: Build Embargo Butler ingest container
 on:
   push:
     branches:
@@ -8,9 +8,9 @@ on:
   pull_request:
 
 env:
-  ENQUEUE_NAME: oga-butler-enqueue
-  INGEST_NAME: oga-butler-ingest
-  IDLE_NAME: oga-butler-idle
+  ENQUEUE_NAME: embargo-butler-enqueue
+  INGEST_NAME: embargo-butler-ingest
+  IDLE_NAME: embargo-butler-idle
 
 jobs:
   push:
