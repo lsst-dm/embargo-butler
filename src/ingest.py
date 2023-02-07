@@ -31,7 +31,7 @@ import time
 
 import redis
 from lsst.daf.butler import Butler
-from lsst.obs.base import RawIngestTask, DefineVisitsTask
+from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
 
 from exposure_info import ExposureInfo
