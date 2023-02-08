@@ -22,41 +22,22 @@
 """
 Enqueue service to post notifications to per-bucket queues.
 """
-import logging
 import os
-import re
-import sys
+import redis
 import time
 import urllib.parse
 
-import redis
 from flask import Flask, request
 
 from exposure_info import ExposureInfo
+from utils import setup_logging, setup_redis
 
 FILE_RETENTION: float = 7 * 24 * 60 * 60
 """Time in seconds to remember information about specific FITS files."""
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
-    style="{",
-    stream=sys.stderr,
-    force=True,
-)
-logger = logging.getLogger(__name__)
-
-r = redis.Redis(host=os.environ["REDIS_HOST"])
-r.auth(os.environ["REDIS_PASSWORD"])
+logger = setup_logging(__name__)
+r = setup_redis()
 notification_secret = os.environ["NOTIFICATION_SECRET"]
-logspec = os.environ.get("LOG_CONFIG")
-
-if logspec:
-    # One-line "component=LEVEL" logging specification parser.
-    for component, level in re.findall(r"(?:([\w.]*)=)?(\w+)", logspec):
-        if component == ".":
-            component = "lsst"
-        logging.getLogger(component).setLevel(level)
 
 
 def enqueue_objects(objects):

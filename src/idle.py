@@ -26,37 +26,16 @@ After a configurable number of seconds, move all work items from an idle
 worker's queue back to the main per-bucket queue.  This avoids losing work
 items when a deployment is restarted.
 """
-import logging
-import os
-import re
-import sys
 import time
 
-import redis
+from utils import setup_logging, setup_redis
 
 IDLE_MAX: float = 10
 """Max idle time in seconds for worker queues before requeueing them
 (`float`)"""
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
-    style="{",
-    stream=sys.stderr,
-    force=True,
-)
-logger = logging.getLogger(__name__)
-
-r = redis.Redis(host=os.environ["REDIS_HOST"])
-r.auth(os.environ["REDIS_PASSWORD"])
-logspec = os.environ.get("LOG_CONFIG")
-
-if logspec:
-    # One-line "component=LEVEL" logging specification parser.
-    for component, level in re.findall(r"(?:([\w.]*)=)?(\w+)", logspec):
-        if component == ".":
-            component = "lsst"
-        logging.getLogger(component).setLevel(level)
+logger = setup_logging(__name__)
+r = setup_redis()
 
 
 def main():

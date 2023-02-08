@@ -22,46 +22,25 @@
 """
 Service to ingest images into per-bucket Butler repos.
 """
-import logging
 import os
-import re
 import socket
-import sys
 import time
 
-import redis
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
 
 from exposure_info import ExposureInfo
+from utils import setup_logging, setup_redis
 
 MAX_FAILURES: int = 3
 """Retry ingests until this many failures (`int`)."""
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="{levelname} {asctime} {name} ({filename}:{lineno}) - {message}",
-    style="{",
-    stream=sys.stderr,
-    force=True,
-)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-r = redis.Redis(host=os.environ["REDIS_HOST"])
-r.auth(os.environ["REDIS_PASSWORD"])
+logger = setup_logging(__name__)
+r = setup_redis()
 bucket = os.environ["BUCKET"]
 redis_queue = f"QUEUE:{bucket}"
 butler_repo = os.environ["BUTLER_REPO"]
-logspec = os.environ.get("LOG_CONFIG")
-
-if logspec:
-    # One-line "component=LEVEL" logging specification parser.
-    for component, level in re.findall(r"(?:([\w.]*)=)?(\w+)", logspec):
-        if component == ".":
-            component = "lsst"
-        logging.getLogger(component).setLevel(level)
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
