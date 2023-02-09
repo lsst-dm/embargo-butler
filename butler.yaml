@@ -13,4 +13,4 @@ registry:
     dimensions: lsst.daf.butler.registry.dimensions.static.StaticDimensionRecordStorageManager
     obscore: lsst.daf.butler.registry.obscore._manager.ObsCoreLiveTableManager
     opaque: lsst.daf.butler.registry.opaque.ByNameOpaqueTableStorageManager
-  namespace: test_oga
+  namespace: oga
