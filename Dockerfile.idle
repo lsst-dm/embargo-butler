@@ -24,7 +24,7 @@
 FROM python:3.10
 RUN pip install redis
 WORKDIR /idle
-COPY src/idle.py /idle/
+COPY src/idle.py src/utils.py /idle/
 # environment variables that must be set:
 # REDIS_HOST REDIS_PASSWORD
 ENTRYPOINT [ "python3", "/idle/idle.py" ]
