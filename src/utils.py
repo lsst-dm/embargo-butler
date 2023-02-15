@@ -82,6 +82,5 @@ def setup_redis():
         The Redis connection.
     """
 
-    r = redis.Redis(host=os.environ["REDIS_HOST"])
-    r.auth(os.environ["REDIS_PASSWORD"])
+    r = redis.Redis(host=os.environ["REDIS_HOST"], password=os.environ["REDIS_PASSWORD"])
     return r
