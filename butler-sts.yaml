@@ -11,6 +11,5 @@ registry:
     attributes: lsst.daf.butler.registry.attributes.DefaultButlerAttributeManager
     datastores: lsst.daf.butler.registry.bridge.monolithic.MonolithicDatastoreRegistryBridgeManager
     dimensions: lsst.daf.butler.registry.dimensions.static.StaticDimensionRecordStorageManager
-    obscore: lsst.daf.butler.registry.obscore._manager.ObsCoreLiveTableManager
     opaque: lsst.daf.butler.registry.opaque.ByNameOpaqueTableStorageManager
   namespace: bot_data_w_2021_43
