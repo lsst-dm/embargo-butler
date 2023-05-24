@@ -22,9 +22,14 @@
 """
 Service to ingest images into per-bucket Butler repos.
 """
+import hashlib
 import os
+import re
 import socket
 import time
+import zlib
+
+from rucio.client.replicaclient import ReplicaClient
 
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
@@ -44,6 +49,12 @@ butler_repo = os.environ["BUTLER_REPO"]
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
+
+rucio_rse = os.environ.get("RUCIO_RSE", None)
+if rucio_rse:
+    pfn_base = ResourcePath(os.environ["RUCIO_DTN"]).join(bucket, forceDirectory=True)
+    scope = os.environ["RUCIO_SCOPE"]
+    rucio_client = ReplicaClient()
 
 
 def on_success(datasets):
@@ -158,6 +169,25 @@ def main():
                         logger.info("Defined visits for %s", ids)
                     except Exception:
                         logger.exception("Error while defining visits for %s", refs)
+                if rucio_rse:
+                    # Register with Rucio
+                    data = []
+                    for res in resources:
+                        with res.open("rb") as f:
+                            contents = f.read()
+                            size = len(contents)
+                            md5 = hashlib.md5(contents).hexdigest()
+                            adler32 = f"{zlib.adler32(contents):08x}"
+                        # Trim bucket out of path
+                        path = re.sub(r"^/?.*?/", "", res.path())
+                        pfn = pfn_base.join(path)
+                        pfn = str(pfn)
+                        data.append(
+                            dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=scope)
+                        )
+                    rucio_client.add_replicas(rucio_rse, data)
+                    logger.info("Registered replicas for %s", data)
+
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
         r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
