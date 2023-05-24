@@ -29,11 +29,11 @@ import socket
 import time
 import zlib
 
-from rucio.client.replicaclient import ReplicaClient
-
+import requests
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
+from rucio.client.replicaclient import ReplicaClient
 
 from exposure_info import ExposureInfo
 from utils import setup_logging, setup_redis
@@ -46,6 +46,7 @@ r = setup_redis()
 bucket = os.environ["BUCKET"]
 redis_queue = f"QUEUE:{bucket}"
 butler_repo = os.environ["BUTLER_REPO"]
+webhook_uri = os.environ.get("WEBHOOK_URI", None)
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
@@ -76,6 +77,9 @@ def on_success(datasets):
             pipe.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
             pipe.hincrby(f"INGEST:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
             pipe.execute()
+        if webhook_uri:
+            resp = requests.post(webhook_uri, json=e.__dict__, timeout=0.5)
+            logger.info("Webhook response: %s", resp)
 
 
 def on_ingest_failure(dataset, exc):
