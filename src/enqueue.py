@@ -23,10 +23,10 @@
 Enqueue service to post notifications to per-bucket queues.
 """
 import os
-import redis
 import time
 import urllib.parse
 
+import redis
 from flask import Flask, request
 
 from exposure_info import ExposureInfo

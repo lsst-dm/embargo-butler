@@ -29,12 +29,11 @@ import socket
 import time
 import zlib
 
-from rucio.client.replicaclient import ReplicaClient
-
 import requests
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
+from rucio.client.replicaclient import ReplicaClient
 
 from exposure_info import ExposureInfo
 from utils import setup_logging, setup_redis
