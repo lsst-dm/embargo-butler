@@ -22,9 +22,11 @@
 # Dockerfile for ingest service.
 
 FROM lsstsqre/newinstall:latest
+ARG RELEASE=w_2023_21
+LABEL org.lsst.release=$RELEASE
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py rucio-clients
-RUN source loadLSST.bash && eups distrib install -t "w_2023_21" obs_lsst
+RUN source loadLSST.bash && eups distrib install -t $RELEASE obs_lsst
 COPY src/ingest.py src/exposure_info.py src/utils.py ./ingest/
 COPY butler.yaml /home/lsst/repo/butler.yaml
 COPY butler-embargo.yaml /repo/embargo/butler.yaml
