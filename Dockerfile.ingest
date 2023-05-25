@@ -24,7 +24,7 @@
 FROM lsstsqre/newinstall:latest
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py rucio-clients
-RUN source loadLSST.bash && eups distrib install -t "d_2023_05_24" obs_lsst
+RUN source loadLSST.bash && eups distrib install -t "w_2023_21" obs_lsst
 COPY src/ingest.py src/exposure_info.py src/utils.py ./ingest/
 COPY butler.yaml /home/lsst/repo/butler.yaml
 COPY butler-embargo.yaml /repo/embargo/butler.yaml
@@ -35,4 +35,6 @@ COPY butler-sts.yaml /repo/ir2/butler.yaml
 # REDIS_HOST REDIS_PASSWORD BUCKET BUTLER_REPO
 # For Rucio (all must be set if RUCIO_RSE is set):
 # RUCIO_RSE RUCIO_DTN RUCIO_SCOPE RUCIO_CONFIG
+# Optional:
+# WEBHOOK_URI
 ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]
