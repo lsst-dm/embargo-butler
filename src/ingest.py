@@ -191,6 +191,7 @@ def main():
                         data.append(
                             dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=scope)
                         )
+                    logger.info("Registering replicas in %s for %s", rucio_rse, data)
                     rucio_client.add_replicas(rucio_rse, data)
                     logger.info("Registered replicas for %s", data)
 
