@@ -24,7 +24,6 @@ Service to ingest images into per-bucket Butler repos.
 """
 import hashlib
 import os
-import re
 import socket
 import time
 import zlib
@@ -178,21 +177,30 @@ def main():
                         logger.exception("Error while defining visits for %s", refs)
                 if rucio_rse:
                     # Register with Rucio
-                    data = []
-                    for res in resources:
-                        with res.open("rb") as f:
-                            contents = f.read()
-                            size = len(contents)
-                            md5 = hashlib.md5(contents).hexdigest()
-                            adler32 = f"{zlib.adler32(contents):08x}"
-                        # Trim bucket out of path
-                        path = re.sub(r"^/?.*?/", "", res.path)
-                        pfn = pfn_base + path
-                        data.append(
-                            dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=scope)
-                        )
-                    rucio_client.add_replicas(rucio_rse, data)
-                    logger.info("Registered replicas for %s", data)
+                    try:
+                        data = []
+                        for res in resources:
+                            with res.open("rb") as f:
+                                contents = f.read()
+                                size = len(contents)
+                                md5 = hashlib.md5(contents).hexdigest()
+                                adler32 = f"{zlib.adler32(contents):08x}"
+                            pfn = pfn_base + res.path
+                            data.append(
+                                dict(
+                                    pfn=pfn,
+                                    bytes=size,
+                                    adler32=adler32,
+                                    md5=md5,
+                                    name=res.path,
+                                    scope=scope,
+                                )
+                            )
+                        logger.info("Registering replicas in %s for %s", rucio_rse, data)
+                        rucio_client.add_replicas(rucio_rse, data)
+                        logger.info("Registered replicas for %s", data)
+                    except Exception:
+                        logger.exception("Rucio registration failed")
 
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
