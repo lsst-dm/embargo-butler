@@ -185,14 +185,15 @@ def main():
                                 size = len(contents)
                                 md5 = hashlib.md5(contents).hexdigest()
                                 adler32 = f"{zlib.adler32(contents):08x}"
-                            pfn = pfn_base + res.path
+                            path = res.path.removeprefix("/")
+                            pfn = pfn_base + path
                             data.append(
                                 dict(
                                     pfn=pfn,
                                     bytes=size,
                                     adler32=adler32,
                                     md5=md5,
-                                    name=res.path,
+                                    name=path,
                                     scope=scope,
                                 )
                             )
