@@ -186,7 +186,7 @@ def main():
                             md5 = hashlib.md5(contents).hexdigest()
                             adler32 = f"{zlib.adler32(contents):08x}"
                         # Trim bucket out of path
-                        path = re.sub(r"^/?.*?/", "", res.path())
+                        path = re.sub(r"^/?.*?/", "", res.path)
                         pfn = pfn_base + path
                         data.append(
                             dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=scope)
