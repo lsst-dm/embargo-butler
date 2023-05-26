@@ -53,7 +53,10 @@ worker_queue = f"WORKER:{bucket}:{worker_name}"
 
 rucio_rse = os.environ.get("RUCIO_RSE", None)
 if rucio_rse:
-    pfn_base = ResourcePath(os.environ["RUCIO_DTN"]).join(bucket, forceDirectory=True)
+    dtn_url = os.environ["RUCIO_DTN"]
+    if not dtn_url.endswith("/"):
+        dtn_url += "/"
+    pfn_base = f"{dtn_url}{bucket}/"
     scope = os.environ["RUCIO_SCOPE"]
     rucio_client = ReplicaClient()
 
@@ -184,8 +187,7 @@ def main():
                             adler32 = f"{zlib.adler32(contents):08x}"
                         # Trim bucket out of path
                         path = re.sub(r"^/?.*?/", "", res.path())
-                        pfn = pfn_base.join(path)
-                        pfn = str(pfn)
+                        pfn = pfn_base + path
                         data.append(
                             dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=scope)
                         )
