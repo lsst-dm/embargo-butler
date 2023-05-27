@@ -45,7 +45,7 @@ def main():
         logger.debug("Checking for idle queues")
         for queue in r.scan_iter("WORKER:*"):
             idle = r.object("idletime", queue)
-            if idle > IDLE_MAX:
+            if idle and idle > IDLE_MAX:
                 logger.info("Restoring idle queue %s (%f sec)", queue, idle)
                 bucket = queue.decode().split(":")[1]
                 dest = f"QUEUE:{bucket}"
