@@ -40,6 +40,9 @@ from utils import setup_logging, setup_redis
 MAX_FAILURES: int = 3
 """Retry ingests until this many failures (`int`)."""
 
+max_ingests = int(os.environ.get("MAX_INGESTS", "10"))
+"""Accept up to this many files to ingest at once."""
+
 logger = setup_logging(__name__)
 r = setup_redis()
 bucket = os.environ["BUCKET"]
@@ -206,6 +209,10 @@ def main():
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
         r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
+        # Be greedy and take as many entries as exist up to max
+        n = r.llen(worker_queue)
+        while n < max_ingests and r.lmove(redis_queue, worker_queue, "RIGHT", "LEFT"):
+            n += 1
 
 
 if __name__ == "__main__":
