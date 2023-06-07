@@ -22,19 +22,17 @@
 """
 Service to ingest images into per-bucket Butler repos.
 """
-import hashlib
 import os
 import socket
 import time
-import zlib
 
 import requests
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
-from rucio.client.replicaclient import ReplicaClient
 
 from exposure_info import ExposureInfo
+from rucio_interface import RucioInterface
 from utils import setup_logging, setup_redis
 
 MAX_FAILURES: int = 3
@@ -58,9 +56,7 @@ if rucio_rse:
     dtn_url = os.environ["RUCIO_DTN"]
     if not dtn_url.endswith("/"):
         dtn_url += "/"
-    pfn_base = f"{dtn_url}{bucket}/"
-    scope = os.environ["RUCIO_SCOPE"]
-    rucio_client = ReplicaClient()
+    rucio_interface = RucioInterface(rucio_rse, dtn_url, bucket, os.environ["RUCIO_SCOPE"])
 
 
 def on_success(datasets):
@@ -164,6 +160,8 @@ def main():
                     resources.append(ResourcePath(f"s3://{b.decode()}"))
                 else:
                     r.lrem(worker_queue, 0, b)
+
+            # Ingest if we have resources
             if resources:
                 logger.info("Ingesting %s", resources)
                 refs = None
@@ -171,6 +169,8 @@ def main():
                     refs = ingester.run(resources)
                 except Exception:
                     logger.exception("Error while ingesting %s", resources)
+
+                # Define visits if we ingested anything
                 if refs:
                     try:
                         ids = [ref.dataId for ref in refs]
@@ -179,32 +179,11 @@ def main():
                     except Exception:
                         logger.exception("Error while defining visits for %s", refs)
                 if rucio_rse:
-                    # Register with Rucio
+                    # Register with Rucio if we ingested anything
                     try:
-                        data = []
-                        for res in resources:
-                            with res.open("rb") as f:
-                                contents = f.read()
-                                size = len(contents)
-                                md5 = hashlib.md5(contents).hexdigest()
-                                adler32 = f"{zlib.adler32(contents):08x}"
-                            path = res.path.removeprefix("/")
-                            pfn = pfn_base + path
-                            data.append(
-                                dict(
-                                    pfn=pfn,
-                                    bytes=size,
-                                    adler32=adler32,
-                                    md5=md5,
-                                    name=path,
-                                    scope=scope,
-                                )
-                            )
-                        logger.info("Registering replicas in %s for %s", rucio_rse, data)
-                        rucio_client.add_replicas(rucio_rse, data)
-                        logger.info("Registered replicas for %s", data)
+                        rucio_interface.register(resources)
                     except Exception:
-                        logger.exception("Rucio registration failed")
+                        logger.exception("Rucio registration failed for %s", resources)
 
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.

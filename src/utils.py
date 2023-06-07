@@ -29,6 +29,8 @@ import sys
 
 import redis
 
+__all__ = ["setup_logging", "setup_redis"]
+
 
 def setup_logging(module: str):
     """Set up logging for a service.
