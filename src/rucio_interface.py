@@ -81,8 +81,8 @@ class RucioInterface:
         pfn = self.pfn_base + path
         return dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=self.scope)
 
-    def _attach_did_to_dataset(self, did: dict, dataset_id: str) -> None:
-        """Attach a file specified by Rucio DID to a Rucio dataset.
+    def _attach_dids_to_dataset(self, dids: list[dict], dataset_id: str) -> None:
+        """Attach a list of file specified by Rucio DIDs to a Rucio dataset.
 
         Ignores already-attached files for idempotency.
 
@@ -97,7 +97,7 @@ class RucioInterface:
             self.did_client.attach_dids(
                 scope=self.scope,
                 name=dataset_id,
-                dids=[did],
+                dids=dids,
                 rse=self.rucio_rse,
             )
         except rucio.common.exception.FileAlreadyExists:
@@ -121,6 +121,7 @@ class RucioInterface:
             logger.exception("Could not add replicas: %s", data)
             return
 
+        datasets = dict()
         for did in data:
             # For raw images, use a dataset per 100 exposures
             dataset_id = re.sub(
@@ -128,9 +129,12 @@ class RucioInterface:
                 r"Dataset/\1/\2/\3",
                 did["name"],
             )
+            datasets.setdefault(dataset_id, []).append(did)
+
+        for dataset_id, dids in datasets.items():
             try:
-                logger.info("Attaching %s to Rucio dataset %s", did, dataset_id)
-                self._attach_did_to_dataset(did, dataset_id)
+                logger.info("Attaching %s to Rucio dataset %s", dids, dataset_id)
+                self._attach_dids_to_dataset(dids, dataset_id)
             except rucio.common.exception.DataIdentifierNotFound:
                 # No such dataset, so create it
                 try:
@@ -143,7 +147,7 @@ class RucioInterface:
                     )
                 except rucio.common.exception.DataIdentifierAlreadyExists:
                     pass
-                # And then retry adding DID
-                self._attach_did_to_dataset(did, dataset_id)
+                # And then retry adding DIDs
+                self._attach_dids_to_dataset(dids, dataset_id)
 
         logger.info("Done with Rucio for %s", resources)
