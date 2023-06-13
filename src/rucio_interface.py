@@ -56,7 +56,7 @@ class RucioInterface:
         self.scope = scope
 
         self.replica_client = ReplicaClient()
-        self.did_client = DIDClient
+        self.did_client = DIDClient()
 
     def _make_did(self, res: ResourcePath) -> dict[str, str | int]:
         """Make a Rucio data identifier dictionary from a resource.
