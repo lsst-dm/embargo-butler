@@ -93,15 +93,25 @@ class RucioInterface:
         dataset_id: `str`
             Logical name of the Rucio dataset.
         """
-        try:
-            self.did_client.attach_dids(
-                scope=self.scope,
-                name=dataset_id,
-                dids=dids,
-                rse=self.rucio_rse,
-            )
-        except rucio.common.exception.FileAlreadyExists:
-            pass
+        retries = 0
+        max_retries = 2
+        while True:
+            try:
+                self.did_client.attach_dids(
+                    scope=self.scope,
+                    name=dataset_id,
+                    dids=dids,
+                    rse=self.rucio_rse,
+                )
+                return
+            except rucio.common.exception.FileAlreadyExists:
+                return
+            except rucio.common.exception.DatabaseException:
+                retries += 1
+                if retries < max_retries:
+                    continue
+                else:
+                    raise
 
     def register(self, resources: list[ResourcePath]) -> None:
         """Register a list of files in Rucio.
