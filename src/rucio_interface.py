@@ -21,7 +21,9 @@
 
 import hashlib
 import logging
+import random
 import re
+import time
 import zlib
 
 from lsst.resources import ResourcePath
@@ -81,27 +83,51 @@ class RucioInterface:
         pfn = self.pfn_base + path
         return dict(pfn=pfn, bytes=size, adler32=adler32, md5=md5, name=path, scope=self.scope)
 
-    def _attach_did_to_dataset(self, did: dict, dataset_id: str) -> None:
-        """Attach a file specified by Rucio DID to a Rucio dataset.
+    def _add_files_to_dataset(self, dids: list[dict], dataset_id: str) -> None:
+        """Attach a list of files specified by Rucio DIDs to a Rucio dataset.
 
         Ignores already-attached files for idempotency.
 
         Parameters
         ----------
-        did: `dict [ str, str|int ]`
-            Rucio data identifier.
+        dids: `list [ dict [ str, str|int ] ]`
+            List of Rucio data identifiers.
         dataset_id: `str`
             Logical name of the Rucio dataset.
         """
-        try:
-            self.did_client.attach_dids(
-                scope=self.scope,
-                name=dataset_id,
-                dids=[did],
-                rse=self.rucio_rse,
-            )
-        except rucio.common.exception.FileAlreadyExists:
-            pass
+        retries = 0
+        max_retries = 2
+        while True:
+            try:
+                self.did_client.add_files_to_dataset(
+                    scope=self.scope,
+                    name=dataset_id,
+                    files=dids,
+                    rse=self.rucio_rse,
+                )
+                return
+            except rucio.common.exception.FileAlreadyExists:
+                # At least one already is in the dataset.
+                # This shouldn't happen, but if it does,
+                # we have to retry each individually.
+                for did in dids:
+                    try:
+                        self.did_client.add_files_to_dataset(
+                            scope=self.scope,
+                            name=dataset_id,
+                            files=[did],
+                            rse=self.rucio_rse,
+                        )
+                    except rucio.common.exception.FileAlreadyExists:
+                        pass
+                return
+            except rucio.common.exception.DatabaseException:
+                retries += 1
+                if retries < max_retries:
+                    time.sleep(random.uniform(0.5, 2))
+                    continue
+                else:
+                    raise
 
     def register(self, resources: list[ResourcePath]) -> None:
         """Register a list of files in Rucio.
@@ -112,15 +138,7 @@ class RucioInterface:
             List of resource paths to files.
         """
         data = [self._make_did(r) for r in resources]
-
-        try:
-            logger.info("Registering replicas in %s for %s", self.rucio_rse, data)
-            self.replica_client.add_replicas(self.rucio_rse, data)
-            logger.info("Rucio registration done")
-        except Exception:
-            logger.exception("Could not add replicas: %s", data)
-            return
-
+        datasets = dict()
         for did in data:
             # For raw images, use a dataset per 100 exposures
             dataset_id = re.sub(
@@ -128,9 +146,12 @@ class RucioInterface:
                 r"Dataset/\1/\2/\3",
                 did["name"],
             )
+            datasets.setdefault(dataset_id, []).append(did)
+
+        for dataset_id, dids in datasets.items():
             try:
-                logger.info("Attaching %s to Rucio dataset %s", did, dataset_id)
-                self._attach_did_to_dataset(did, dataset_id)
+                logger.info("Registering %s in dataset %s, RSE %s", dids, dataset_id, self.rucio_rse)
+                self._add_files_to_dataset(dids, dataset_id)
             except rucio.common.exception.DataIdentifierNotFound:
                 # No such dataset, so create it
                 try:
@@ -142,8 +163,9 @@ class RucioInterface:
                         rse=self.rucio_rse,
                     )
                 except rucio.common.exception.DataIdentifierAlreadyExists:
+                    # If someone else created it in the meantime
                     pass
-                # And then retry adding DID
-                self._attach_did_to_dataset(did, dataset_id)
+                # And then retry adding DIDs
+                self._add_files_to_dataset(dids, dataset_id)
 
         logger.info("Done with Rucio for %s", resources)
