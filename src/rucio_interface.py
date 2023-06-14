@@ -142,7 +142,7 @@ class RucioInterface:
         for did in data:
             # For raw images, use a dataset per 100 exposures
             dataset_id = re.sub(
-                r"(\w+)/(\d+)/[A-Z]{2}_[A-Z]_\2_(\d{4})\d{2}/.*",
+                r"(.+?)/(\d+)/[A-Z]{2}_[A-Z]_\2_(\d{4})\d{2}/.*",
                 r"Dataset/\1/\2/\3",
                 did["name"],
             )
