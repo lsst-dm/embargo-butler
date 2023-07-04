@@ -24,8 +24,10 @@ import logging
 import random
 import re
 import time
+from typing import Any
 import zlib
 
+from lsst.daf.butler import DatasetRef
 from lsst.resources import ResourcePath
 from rucio.client.didclient import DIDClient
 from rucio.client.replicaclient import ReplicaClient
@@ -129,17 +131,37 @@ class RucioInterface:
                 else:
                     raise
 
-    def register(self, resources: list[ResourcePath]) -> None:
+    def register(
+        self,
+        resources: list[ResourcePath],
+        refs: list[DatasetRef] = [],
+    ) -> None:
         """Register a list of files in Rucio.
 
         Parameters
         ----------
         resources: `list [ lsst.resources.ResourcePath ]`
             List of resource paths to files.
+        refs: `list [ lsst.daf.butler.DatasetRef ]`
+            Corresponding list of DatasetRefs for datasets (optional).
         """
-        data = [self._make_did(r) for r in resources]
+        if refs:
+            data = []
+            for r, path in zip(refs, resources):
+                did = self._make_did(path)
+                did["meta"] = {
+                    "rubin_butler": 1,
+                    "rubin_metadata": r.to_json(),
+                }
+                data.append(did)
+        else:
+            data = [self._make_did(path) for path in resources]
+        self._register(data)
+        logger.info("Done with Rucio for %s", resources)
+
+    def _register(self, dids: list[dict[str, Any]]) -> None:
         datasets = dict()
-        for did in data:
+        for did in dids:
             # For raw images, use a dataset per 100 exposures
             dataset_id = re.sub(
                 r"(.+?)/(\d+)/[A-Z]{2}_[A-Z]_\2_(\d{4})\d{2}/.*",
@@ -167,5 +189,3 @@ class RucioInterface:
                     pass
                 # And then retry adding DIDs
                 self._add_files_to_dataset(dids, dataset_id)
-
-        logger.info("Done with Rucio for %s", resources)
