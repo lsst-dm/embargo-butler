@@ -3,7 +3,7 @@ datastore:
   name: FileDatastore@s3://rubin-bts
   records:
     table: file_datastore_records
-  root: s3://rubin-bts/
+  root: <butlerRoot>
 registry:
   db: postgresql://usdf-butler.slac.stanford.edu:5432/lsstdb1
   managers:

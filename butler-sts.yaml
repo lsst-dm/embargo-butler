@@ -2,7 +2,7 @@ datastore:
   cls: lsst.daf.butler.datastores.fileDatastore.FileDatastore
   records:
     table: file_datastore_records
-  root: s3://rubin-sts
+  root: <butlerRoot>
 registry:
   db: postgresql://usdf-butler.slac.stanford.edu:5432/lsstdb1
   managers:
