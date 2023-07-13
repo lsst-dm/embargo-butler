@@ -21,7 +21,7 @@
 
 # Dockerfile for ingest service.
 
-FROM lsstsqre/newinstall:latest
+FROM lsstsqre/newinstall:6.0.0
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py rucio-clients
 RUN source loadLSST.bash && eups distrib install -t "w_2023_21" obs_lsst
