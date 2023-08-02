@@ -41,9 +41,6 @@ class ExposureInfo:
     controller: str
     obs_day: str
     seq_num: str
-    detector_full_name: str
-    detector_raft_name: str
-    detector_name_in_raft: str
 
     def __init__(self, path):
         try:
@@ -53,30 +50,18 @@ class ExposureInfo:
             (
                 self.bucket,
                 self.instrument,
-                obs_day,
+                self.obs_day,
                 self.exp_id,
                 self.filename,
             ) = path.split("/")
             (
-                instrument_code,
-                controller,
-                obs_day2,
-                seq_num,
-            ) = self.exp_id.split("_")
-            (
                 self.instrument_code,
                 self.controller,
-                self.obs_day,
+                obs_day,
                 self.seq_num,
-                self.detector_raft_name,
-                self.detector_name_in_raft,
-            ) = self.filename.split("_")
-            self.detector_name_in_raft.removesuffix(".fits")
-            self.detector_full_name = f"{self.detector_raft_name}_{self.detector_name_in_raft}"
-            if obs_day != self.obs_day or obs_day2 != self.obs_day:
+            ) = self.exp_id.split("_")
+            if obs_day != self.obs_day:
                 logger.warn("Mismatched observation dates: %s", path)
-            if seq_num != self.seq_num:
-                logger.warn("Mismatched sequence numbers: %s", path)
         except Exception:
             logger.exception("Unable to parse: %s", path)
             raise
