@@ -21,7 +21,7 @@
 
 # Dockerfile for idle worker cleanup service.
 
-FROM python:3.10
+FROM python:3.11
 RUN pip install redis
 WORKDIR /idle
 COPY src/idle.py src/utils.py /idle/

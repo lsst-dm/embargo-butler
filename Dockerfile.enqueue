@@ -21,7 +21,7 @@
 
 # Dockerfile for enqueue service.
 
-FROM python:3.10
+FROM python:3.11
 RUN pip install redis gunicorn flask
 WORKDIR /enqueue
 COPY src/enqueue.py src/exposure_info.py src/utils.py /enqueue/
