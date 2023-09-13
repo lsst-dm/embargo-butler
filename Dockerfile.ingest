@@ -26,11 +26,6 @@ USER lsst
 RUN source loadLSST.bash && mamba install redis-py rucio-clients
 RUN source loadLSST.bash && eups distrib install -t "w_2023_21" obs_lsst
 COPY src/ingest.py src/exposure_info.py src/utils.py src/rucio_interface.py ./ingest/
-COPY butler.yaml /home/lsst/repo/butler.yaml
-COPY butler-embargo.yaml /repo/embargo/butler.yaml
-COPY butler-tts.yaml /repo/tts/butler.yaml
-COPY butler-bts.yaml /repo/bts/butler.yaml
-COPY butler-sts.yaml /repo/ir2/butler.yaml
 # Environment variables that must be set:
 # REDIS_HOST REDIS_PASSWORD BUCKET BUTLER_REPO
 # For Rucio (all must be set if RUCIO_RSE is set):
