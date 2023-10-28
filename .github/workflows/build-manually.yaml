@@ -1,4 +1,4 @@
-name: Build Embargo Butler ingest container on demand
+name: On-demand ingest build
 on:
   workflow_dispatch:
     inputs:
