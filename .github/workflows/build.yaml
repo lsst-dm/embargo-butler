@@ -1,4 +1,4 @@
-name: Build Embargo Butler ingest container
+name: CI build of all containers
 on:
   push:
     branches:
