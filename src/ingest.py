@@ -174,7 +174,7 @@ def main():
                 if refs:
                     try:
                         ids = [ref.dataId for ref in refs]
-                        visit_definer.run(ids)
+                        visit_definer.run(ids, incremental=True)
                         logger.info("Defined visits for %s", ids)
                     except Exception:
                         logger.exception("Error while defining visits for %s", refs)
