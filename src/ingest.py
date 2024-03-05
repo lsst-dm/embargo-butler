@@ -179,7 +179,7 @@ def main():
                     except Exception:
                         logger.exception("Error while defining visits for %s", refs)
                 if rucio_rse:
-                    # Register with Rucio if we ingested anything
+                    # Register with Rucio whether or not we ingested anything
                     try:
                         rucio_interface.register(resources)
                     except Exception:
