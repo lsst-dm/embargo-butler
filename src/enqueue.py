@@ -29,7 +29,7 @@ import urllib.parse
 import redis
 from flask import Flask, request
 
-from exposure_info import ExposureInfo
+from info import ExposureInfo, Info
 from utils import setup_logging, setup_redis
 
 FILE_RETENTION: float = 7 * 24 * 60 * 60
@@ -38,12 +38,14 @@ FILE_RETENTION: float = 7 * 24 * 60 * 60
 logger = setup_logging(__name__)
 r = setup_redis()
 notification_secret = os.environ["NOTIFICATION_SECRET"]
+extensions = set(os.environ.get("DATASET_EXTENSIONS", "fits").split(","))
 
 
 def enqueue_objects(objects):
-    """Enqueue FITS objects onto per-bucket queues.
+    """Enqueue objects onto per-bucket queues.
 
-    Compute the `ExposureInfo` for each FITS object and return the list.
+    Compute the `Info` for each object with a selected extension and return
+    the list.
 
     Parameters
     ----------
@@ -51,17 +53,18 @@ def enqueue_objects(objects):
 
     Returns
     -------
-    info_list: `list` [`ExposureInfo`]
+    info_list: `list` [`Info`]
     """
     info_list = []
     # Use a pipeline for efficiency.
     with r.pipeline() as pipe:
         for o in objects:
-            if o.endswith(".fits"):
-                e = ExposureInfo(o)
-                pipe.lpush(f"QUEUE:{e.bucket}", o)
-                logger.info("Enqueued %s to %s", o, e.bucket)
-                info_list.append(e)
+            extension = o.rsplit(".", maxsplit=1)[-1]
+            if extension in extensions:
+                info = Info.from_path(o)
+                pipe.lpush(f"QUEUE:{info.bucket}", o)
+                logger.info("Enqueued %s to %s", o, info.bucket)
+                info_list.append(info)
         pipe.execute()
     return info_list
 
@@ -71,18 +74,19 @@ def update_stats(info_list):
 
     Parameters
     ----------
-    info_list: `list` [`ExposureInfo`]
+    info_list: `list` [`Info`]
     """
+    max_seqnum = {}
     with r.pipeline() as pipe:
-        max_seqnum = {}
-        for e in info_list:
-            pipe.hincrby(f"REC:{e.bucket}", e.obs_day, 1)
-            bucket_instrument = f"{e.bucket}:{e.instrument}"
-            pipe.hincrby(f"RECINSTR:{bucket_instrument}", e.obs_day, 1)
-            pipe.hset(f"FILE:{e.path}", "recv_time", str(time.time()))
-            pipe.expire(f"FILE:{e.path}", FILE_RETENTION)
-            seqnum_key = f"MAXSEQ:{bucket_instrument}:{e.obs_day}"
-            max_seqnum[seqnum_key] = max(int(e.seq_num), max_seqnum.get(seqnum_key, 0))
+        for info in info_list:
+            pipe.hincrby(f"REC:{info.bucket}", info.obs_day, 1)
+            bucket_instrument = f"{info.bucket}:{info.instrument}"
+            pipe.hincrby(f"RECINSTR:{bucket_instrument}", info.obs_day, 1)
+            pipe.hset(f"FILE:{info.path}", "recv_time", str(time.time()))
+            pipe.expire(f"FILE:{info.path}", FILE_RETENTION)
+            if isinstance(info, ExposureInfo):
+                seqnum_key = f"MAXSEQ:{bucket_instrument}:{info.obs_day}"
+                max_seqnum[seqnum_key] = max(int(info.seq_num), max_seqnum.get(seqnum_key, 0))
         pipe.execute()
 
     for seqnum_key in max_seqnum:
