@@ -26,10 +26,10 @@ import re
 import time
 import zlib
 
+import rucio.common.exception
 from lsst.resources import ResourcePath
 from rucio.client.didclient import DIDClient
 from rucio.client.replicaclient import ReplicaClient
-import rucio.common.exception
 
 __all__ = ["RucioInterface"]
 

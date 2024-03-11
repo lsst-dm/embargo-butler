@@ -19,33 +19,43 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""
-ExposureInfo class used to extract information from notification messages.
-"""
 import logging
 from dataclasses import dataclass
 
-__all__ = ("ExposureInfo",)
+__all__ = ("Info", "ExposureInfo", "LfaInfo")
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ExposureInfo:
+class Info:
     path: str
     bucket: str
     instrument: str
     filename: str
+    obs_day: str
+
+    @staticmethod
+    def from_path(path: str) -> Info:
+        if path.startswith("s3://"):
+            path = path[len("s3://") :]
+        if path.startswith("rubinobs-lfa-"):
+            return LfaInfo(path)
+        else:
+            return ExposureInfo(path)
+
+
+@dataclass
+class ExposureInfo(Info):
+    """Class used to extract exposure information from notification messages."""
+
     exp_id: str
     instrument_code: str
     controller: str
-    obs_day: str
     seq_num: str
 
     def __init__(self, path):
         try:
-            if path.startswith("s3://"):
-                path = path[len("s3://") :]
             self.path = path
             (
                 self.bucket,
@@ -62,6 +72,27 @@ class ExposureInfo:
             ) = self.exp_id.split("_")
             if obs_day != self.obs_day:
                 logger.warn("Mismatched observation dates: %s", path)
+        except Exception:
+            logger.exception("Unable to parse: %s", path)
+            raise
+
+
+@dataclass
+class LfaInfo(Info):
+    """Class used to extract LFA information from notification messages."""
+
+    def __init__(self, path):
+        try:
+            self.path = path
+            components = path.split("/")
+            if len(components) == 7:
+                self.bucket, csc, generator, year, month, day, self.filename = components
+                self.instrument = f"{csc}/{generator}"
+            elif len(components) == 6:
+                self.bucket, self.instrument, year, month, day, self.filename = components
+            else:
+                raise ValueError(f"Unrecognized number of components: {len(components)}")
+            self.obs_day = f"{year}{month}{day}"
         except Exception:
             logger.exception("Unable to parse: %s", path)
             raise
