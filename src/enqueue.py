@@ -23,6 +23,7 @@
 Enqueue service to post notifications to per-bucket queues.
 """
 import os
+import re
 import time
 import urllib.parse
 
@@ -38,7 +39,7 @@ FILE_RETENTION: float = 7 * 24 * 60 * 60
 logger = setup_logging(__name__)
 r = setup_redis()
 notification_secret = os.environ["NOTIFICATION_SECRET"]
-extensions = set(os.environ.get("DATASET_EXTENSIONS", "fits").split(","))
+regexp = re.compile(os.environ.get("DATASET_REGEXP", r"fits$"))
 
 
 def enqueue_objects(objects):
@@ -59,8 +60,7 @@ def enqueue_objects(objects):
     # Use a pipeline for efficiency.
     with r.pipeline() as pipe:
         for o in objects:
-            extension = o.rsplit(".", maxsplit=1)[-1]
-            if extension in extensions:
+            if regexp.search(o):
                 info = Info.from_path(o)
                 pipe.lpush(f"QUEUE:{info.bucket}", o)
                 logger.info("Enqueued %s to %s", o, info.bucket)
