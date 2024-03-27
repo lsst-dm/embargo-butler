@@ -24,10 +24,10 @@
 ARG RUBINENV_VERSION=7.0.1
 FROM lsstsqre/newinstall:${RUBINENV_VERSION}
 ARG OBS_LSST_VERSION
-ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-w_2023_41}
+ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-w_2024_12}
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py rucio-clients
-RUN source loadLSST.bash && eups distrib install -t "${OBS_LSST_VERSION}" obs_lsst
+RUN source loadLSST.bash && eups distrib install -t "${OBS_LSST_VERSION}" lsst_obs
 COPY src/ingest.py src/info.py src/utils.py src/rucio_interface.py ./ingest/
 # Environment variables that must be set:
 # REDIS_HOST REDIS_PASSWORD BUCKET BUTLER_REPO
@@ -35,4 +35,4 @@ COPY src/ingest.py src/info.py src/utils.py src/rucio_interface.py ./ingest/
 # RUCIO_RSE RUCIO_DTN RUCIO_SCOPE RUCIO_CONFIG
 # Optional:
 # WEBHOOK_URI
-ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup obs_lsst; python ingest/ingest.py" ]
+ENTRYPOINT [ "bash", "-c", "source loadLSST.bash; setup lsst_obs; python ingest/ingest.py" ]
