@@ -158,13 +158,7 @@ def main():
         # Process any entries on the worker queue.
         if r.llen(worker_queue) > 0:
             blobs = r.lrange(worker_queue, 0, -1)
-            resources = []
-            for b in blobs:
-                if b.endswith(b".fits"):
-                    # Should always be the case
-                    resources.append(ResourcePath(f"s3://{b.decode()}"))
-                else:
-                    r.lrem(worker_queue, 0, b)
+            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs]
 
             # Ingest if we have resources
             if resources:
