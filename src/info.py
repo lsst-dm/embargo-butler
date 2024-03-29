@@ -138,7 +138,10 @@ class LfaInfo(Info):
         try:
             self.path = path
             components = path.split("/")
-            if len(components) == 7:
+            if len(components) == 8:
+                self.bucket, csc, generator, year, month, day, directory, self.filename = components
+                self.instrument = f"{csc}/{generator}"
+            elif len(components) == 7:
                 self.bucket, csc, generator, year, month, day, self.filename = components
                 self.instrument = f"{csc}/{generator}"
             elif len(components) == 6:
