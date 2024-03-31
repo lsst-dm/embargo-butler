@@ -5,11 +5,11 @@ on:
       rubinenvVersion:
         description: 'rubin-env version'
         required: true
-        default: '7.0.1'
+        default: '8.0.0'
       obsLsstVersion:
         description: 'Science Pipelines release'
         required: true
-        default: 'w_2023_41'
+        default: 'w_2024_12'
 
 
 env:
