@@ -149,6 +149,8 @@ def record_groups(resources: list[ResourcePath]) -> None:
     global r, group_lifetime, logger
     with r.pipeline() as pipe:
         for res in resources:
+            if not res.exists():
+                continue
             json_file = res.updatedExtension("json")
             header = {}
             try:
@@ -159,7 +161,7 @@ def record_groups(resources: list[ResourcePath]) -> None:
                     with res.open("rb") as f:
                         header = astropy.io.fits.open(f)[0].header
                 except Exception:
-                    logger.exception("Error reading group for %s", res)
+                    logger.exception("Error reading header for %s", res)
             try:
                 instrument = header["INSTRUME"]
                 groupid = header["GROUPID"]
