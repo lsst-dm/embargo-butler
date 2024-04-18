@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-Service to ingest images into per-bucket Butler repos.
+Service to ingest images or LFA objects into per-bucket Butler repos.
 """
 import os
 import socket
@@ -31,7 +31,7 @@ from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
 
-from exposure_info import ExposureInfo
+from info import Info
 from rucio_interface import RucioInterface
 from utils import setup_logging, setup_redis
 
@@ -44,19 +44,23 @@ max_ingests = int(os.environ.get("MAX_INGESTS", "10"))
 logger = setup_logging(__name__)
 r = setup_redis()
 bucket = os.environ["BUCKET"]
+if bucket.startswith("rubin:"):
+    os.environ["LSST_DISABLE_BUCKET_VALIDATION"] = "1"
 redis_queue = f"QUEUE:{bucket}"
 butler_repo = os.environ["BUTLER_REPO"]
 webhook_uri = os.environ.get("WEBHOOK_URI", None)
+is_lfa = "rubinobs-lfa-" in bucket
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
 
-rucio_rse = os.environ.get("RUCIO_RSE", None)
-if rucio_rse:
-    dtn_url = os.environ["RUCIO_DTN"]
-    if not dtn_url.endswith("/"):
-        dtn_url += "/"
-    rucio_interface = RucioInterface(rucio_rse, dtn_url, bucket, os.environ["RUCIO_SCOPE"])
+if not is_lfa:
+    rucio_rse = os.environ.get("RUCIO_RSE", None)
+    if rucio_rse:
+        dtn_url = os.environ["RUCIO_DTN"]
+        if not dtn_url.endswith("/"):
+            dtn_url += "/"
+        rucio_interface = RucioInterface(rucio_rse, dtn_url, bucket, os.environ["RUCIO_SCOPE"])
 
 
 def on_success(datasets):
@@ -71,15 +75,15 @@ def on_success(datasets):
     """
     for dataset in datasets:
         logger.info("Ingested %s", dataset)
-        e = ExposureInfo(dataset.path.geturl())
-        logger.debug("Exposure %s", e)
+        info = Info.from_path(dataset.path.geturl())
+        logger.debug("%s", info)
         with r.pipeline() as pipe:
-            pipe.lrem(worker_queue, 0, e.path)
-            pipe.hset(f"FILE:{e.path}", "ingest_time", str(time.time()))
-            pipe.hincrby(f"INGEST:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
+            pipe.lrem(worker_queue, 0, info.path)
+            pipe.hset(f"FILE:{info.path}", "ingest_time", str(time.time()))
+            pipe.hincrby(f"INGEST:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
             pipe.execute()
         if webhook_uri:
-            resp = requests.post(webhook_uri, json=e.__dict__, timeout=0.5)
+            resp = requests.post(webhook_uri, json=info.__dict__, timeout=0.5)
             logger.info("Webhook response: %s", resp)
 
 
@@ -96,15 +100,15 @@ def on_ingest_failure(dataset, exc):
         Exception raised by the ingest failure.
     """
     logger.error("Failed to ingest %s: %s", dataset, exc)
-    e = ExposureInfo(dataset.files[0].filename.geturl())
-    logger.debug("Exposure %s", e)
+    info = Info.from_path(dataset.files[0].filename.geturl())
+    logger.debug("%s", info)
     with r.pipeline() as pipe:
-        pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
-        pipe.hset(f"FILE:{e.path}", "ing_fail_exc", str(exc))
-        pipe.hincrby(f"FILE:{e.path}", "ing_fail_count", 1)
+        pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+        pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
+        pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
         pipe.execute()
-    if int(r.hget(f"FILE:{e.path}", "ing_fail_count")) >= MAX_FAILURES:
-        r.lrem(worker_queue, 0, e.path)
+    if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= MAX_FAILURES:
+        r.lrem(worker_queue, 0, info.path)
 
 
 def on_metadata_failure(dataset, exc):
@@ -121,12 +125,12 @@ def on_metadata_failure(dataset, exc):
     """
 
     logger.error("Failed to translate metadata for %s: %s", dataset, exc)
-    e = ExposureInfo(dataset.geturl())
-    logger.debug("Exposure %s", e)
+    info = Info.from_path(dataset.geturl())
+    logger.debug("%s", info)
     with r.pipeline() as pipe:
-        pipe.hincrby(f"FAIL:{e.bucket}:{e.instrument}", f"{e.obs_day}", 1)
-        pipe.hset(f"FILE:{e.path}", "md_fail_exc", str(exc))
-        pipe.lrem(worker_queue, 0, e.path)
+        pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+        pipe.hset(f"FILE:{info.path}", "md_fail_exc", str(exc))
+        pipe.lrem(worker_queue, 0, info.path)
         pipe.execute()
 
 
@@ -144,22 +148,17 @@ def main():
         on_metadata_failure=on_metadata_failure,
     )
 
-    define_visits_config = DefineVisitsTask.ConfigClass()
-    define_visits_config.groupExposures = "one-to-one"
-    visit_definer = DefineVisitsTask(config=define_visits_config, butler=butler)
+    if not is_lfa:
+        define_visits_config = DefineVisitsTask.ConfigClass()
+        define_visits_config.groupExposures = "one-to-one"
+        visit_definer = DefineVisitsTask(config=define_visits_config, butler=butler)
 
     logger.info("Waiting on %s", worker_queue)
     while True:
         # Process any entries on the worker queue.
         if r.llen(worker_queue) > 0:
             blobs = r.lrange(worker_queue, 0, -1)
-            resources = []
-            for b in blobs:
-                if b.endswith(b".fits"):
-                    # Should always be the case
-                    resources.append(ResourcePath(f"s3://{b.decode()}"))
-                else:
-                    r.lrem(worker_queue, 0, b)
+            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs]
 
             # Ingest if we have resources
             if resources:
@@ -171,14 +170,14 @@ def main():
                     logger.exception("Error while ingesting %s", resources)
 
                 # Define visits if we ingested anything
-                if refs:
+                if not is_lfa and refs:
                     try:
                         ids = [ref.dataId for ref in refs]
                         visit_definer.run(ids)
                         logger.info("Defined visits for %s", ids)
                     except Exception:
                         logger.exception("Error while defining visits for %s", refs)
-                if rucio_rse:
+                if not is_lfa and rucio_rse:
                     # Register with Rucio if we ingested anything
                     try:
                         rucio_interface.register(resources)
