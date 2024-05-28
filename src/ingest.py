@@ -168,6 +168,7 @@ def main():
                     refs = ingester.run(resources)
                 except Exception:
                     logger.exception("Error while ingesting %s", resources)
+                    continue
 
                 # Define visits if we ingested anything
                 if not is_lfa and refs:
