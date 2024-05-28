@@ -11,6 +11,7 @@ env:
   ENQUEUE_NAME: embargo-butler-enqueue
   INGEST_NAME: embargo-butler-ingest
   IDLE_NAME: embargo-butler-idle
+  PRESENCE_NAME: embargo-butler-presence
 
 jobs:
   push:
@@ -20,7 +21,7 @@ jobs:
       contents: read
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Build enqueue image
       run: |
@@ -43,6 +44,13 @@ jobs:
           --tag $IDLE_NAME \
           --label "runnumber=${GITHUB_RUN_ID}"
 
+    - name: Build presence image
+      run: |
+        docker build . \
+          -f Dockerfile.presence \
+          --tag $PRESENCE_NAME \
+          --label "runnumber=${GITHUB_RUN_ID}"
+
     - name: Log in to GitHub Container Registry
       run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u $ --password-stdin
 
@@ -51,6 +59,7 @@ jobs:
         ENQUEUE_ID=ghcr.io/${{ github.repository_owner }}/$ENQUEUE_NAME
         INGEST_ID=ghcr.io/${{ github.repository_owner }}/$INGEST_NAME
         IDLE_ID=ghcr.io/${{ github.repository_owner }}/$IDLE_NAME
+        PRESENCE_ID=ghcr.io/${{ github.repository_owner }}/$PRESENCE_NAME
 
         if [[ "${{ github.ref }}" == "refs/pull/"* ]]; then
           VERSION=$(echo "${{ github.head_ref }}" | sed -e 's|.*/||')
@@ -62,6 +71,7 @@ jobs:
         echo ENQUEUE_ID=$ENQUEUE_ID
         echo INGEST_ID=$INGEST_ID
         echo IDLE_ID=$IDLE_ID
+        echo PRESENCE_ID=$PRESENCE_ID
         echo VERSION=$VERSION
         docker tag $ENQUEUE_NAME $ENQUEUE_ID:$VERSION
         docker push $ENQUEUE_ID:$VERSION
@@ -69,3 +79,5 @@ jobs:
         docker push $INGEST_ID:$VERSION
         docker tag $IDLE_NAME $IDLE_ID:$VERSION
         docker push $IDLE_ID:$VERSION
+        docker tag $PRESENCE_NAME $PRESENCE_ID:$VERSION
+        docker push $PRESENCE_ID:$VERSION
