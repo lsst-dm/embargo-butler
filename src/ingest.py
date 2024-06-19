@@ -46,12 +46,6 @@ max_ingests = int(os.environ.get("MAX_INGESTS", "10"))
 logger = setup_logging(__name__)
 r = setup_redis()
 bucket = os.environ["BUCKET"]
-if (pos := bucket.find("@")) >= 0:
-    pos += 1
-    profile = bucket[:pos]
-    bucket = bucket[pos:]
-else:
-    profile = ""
 if bucket.startswith("rubin:"):
     os.environ["LSST_DISABLE_BUCKET_VALIDATION"] = "1"
 redis_queue = f"QUEUE:{bucket}"
@@ -205,7 +199,7 @@ def main():
         # Process any entries on the worker queue.
         if r.llen(worker_queue) > 0:
             blobs = r.lrange(worker_queue, 0, -1)
-            resources = [ResourcePath(f"s3://{profile}{b.decode()}") for b in blobs]
+            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs]
 
             # Ingest if we have resources
             if resources:

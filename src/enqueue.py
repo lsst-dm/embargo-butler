@@ -40,6 +40,9 @@ logger = setup_logging(__name__)
 r = setup_redis()
 notification_secret = os.environ["NOTIFICATION_SECRET"]
 regexp = re.compile(os.environ.get("DATASET_REGEXP", r"fits$"))
+profile = os.environ.get("PROFILE", "")
+if profile != "":
+    profile += "@"
 
 
 def enqueue_objects(objects):
@@ -119,7 +122,7 @@ def notify():
             logger.info("Unrecognized secret %s", r["opaqueData"])
             continue
         object_names.append(
-            r["s3"]["bucket"]["name"] + "/" + urllib.parse.unquote_plus(r["s3"]["object"]["key"])
+            profile + r["s3"]["bucket"]["name"] + "/" + urllib.parse.unquote_plus(r["s3"]["object"]["key"])
         )
     info_list = enqueue_objects(object_names)
     update_stats(info_list)
