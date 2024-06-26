@@ -66,7 +66,7 @@ def presence(instrument: str, group_name: str, snap_index: int, detector_name: s
             return ({"error": True, "message": f"Unrecognized detector name {detector_name}"}, 400)
         key = f"GROUP:{instrument}:{group_name}:{snap_index}:{detector_name}"
         result = r.get(key)
-        if result:
+        if result is not None:
             logger.info(f"Found key {key}")
             if delete_seen:
                 r.delete(key)

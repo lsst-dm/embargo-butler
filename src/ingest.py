@@ -164,6 +164,16 @@ def record_groups(resources: list[ResourcePath]) -> None:
                     logger.exception("Error reading header for %s", res)
             try:
                 instrument = header["INSTRUME"]
+                # Canonicalize instrument name
+                match instrument.lower():
+                    case "lsstcomcamsim" | "comcamsim":
+                        instrument = "LSSTComCamSim"
+                    case "lsstcomcam" | "comcam":
+                        instrument = "LSSTComCam"
+                    case "lsstcam":
+                        instrument = "LSSTCam"
+                    case "latiss":
+                        instrument = "LATISS"
                 groupid = header["GROUPID"]
                 snap_number = int(header["CURINDEX"]) - 1
                 detector = header["RAFTBAY"] + "_" + header["CCDSLOT"]
