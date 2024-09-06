@@ -34,7 +34,6 @@ from lsst.obs.base import DefineVisitsTask, RawIngestTask
 from lsst.resources import ResourcePath
 
 from info import Info
-from rucio_interface import RucioInterface
 from utils import setup_logging, setup_redis
 
 MAX_FAILURES: int = 3
@@ -56,14 +55,6 @@ group_lifetime = int(os.environ.get("GROUP_LIFETIME", 86400))
 
 worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
-
-if not is_lfa:
-    rucio_rse = os.environ.get("RUCIO_RSE", None)
-    if rucio_rse:
-        dtn_url = os.environ["RUCIO_DTN"]
-        if not dtn_url.endswith("/"):
-            dtn_url += "/"
-        rucio_interface = RucioInterface(rucio_rse, dtn_url, bucket, os.environ["RUCIO_SCOPE"])
 
 
 def on_success(datasets):
@@ -246,12 +237,6 @@ def main():
                                 logger.info("Defined visit for %s", id)
                             except Exception:
                                 logger.exception("Error while defining visits for %s", id)
-                if not is_lfa and rucio_rse:
-                    # Register with Rucio if we ingested anything
-                    try:
-                        rucio_interface.register(resources)
-                    except Exception:
-                        logger.exception("Rucio registration failed for %s", resources)
 
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
