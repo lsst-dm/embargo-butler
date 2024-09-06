@@ -174,14 +174,15 @@ def record_groups(resources: list[ResourcePath]) -> None:
                         instrument = "LSSTCam"
                     case "latiss":
                         instrument = "LATISS"
-                groupid = header["GROUPID"]
-                snap_number = int(header["CURINDEX"]) - 1
-                detector = header["RAFTBAY"] + "_" + header["CCDSLOT"]
-                key = f"GROUP:{instrument}:{groupid}:{snap_number}:{detector}"
-                pipe.set(key, str(res))
-                pipe.expire(key, group_lifetime)
+                if "GROUPID" in header:
+                    groupid = header["GROUPID"]
+                    snap_number = int(header["CURINDEX"]) - 1
+                    detector = header["RAFTBAY"] + "_" + header["CCDSLOT"]
+                    key = f"GROUP:{instrument}:{groupid}:{snap_number}:{detector}"
+                    pipe.set(key, str(res))
+                    pipe.expire(key, group_lifetime)
             except Exception:
-                logger.exception("Error reading group for %s", res)
+                logger.exception("Error reading snap/detector for %s", res)
         pipe.execute()
 
 
