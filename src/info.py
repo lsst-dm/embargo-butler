@@ -146,9 +146,12 @@ class LfaInfo(Info):
                 self.instrument = f"{csc}/{generator}"
             elif len(components) == 6:
                 self.bucket, self.instrument, year, month, day, self.filename = components
+            elif len(components) == 5:  # photodiode data
+                self.bucket, self.instrument, data_type, self.obs_day, self.filename = components
             else:
                 raise ValueError(f"Unrecognized number of components: {len(components)}")
-            self.obs_day = f"{year}{month}{day}"
+            if not self.obs_day:
+                self.obs_day = f"{year}{month}{day}"
         except Exception:
             logger.exception("Unable to parse: %s", path)
             raise
