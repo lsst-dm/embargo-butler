@@ -227,7 +227,7 @@ def main():
                     refs = []
                     for resource in resources:
                         try:
-                            refs.append(ingester.run([resource]))
+                            refs.extend(ingester.run([resource]))
                         except Exception:
                             logger.exception("Error while ingesting %s", resource)
                             info = Info.from_path(resource.geturl())
