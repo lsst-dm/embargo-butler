@@ -21,12 +21,12 @@
 
 # Dockerfile for ingest service.
 
-ARG RUBINENV_VERSION=8.0.0
-FROM lsstsqre/newinstall:${RUBINENV_VERSION}
+ARG RUBINENV_VERSION=9.0.0
+FROM ghcr.io/lsst-dm/docker-newinstall:9-latest-${RUBINENV_VERSION}
 ARG OBS_LSST_VERSION
-ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-w_2024_24}
+ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-w_2024_40}
 USER lsst
-RUN source loadLSST.bash && mamba install redis-py rucio-clients
+RUN source loadLSST.bash && mamba install redis-py
 RUN source loadLSST.bash && eups distrib install -t "${OBS_LSST_VERSION}" lsst_obs
 COPY src/ingest.py src/info.py src/utils.py src/rucio_interface.py ./ingest/
 # Environment variables that must be set:
