@@ -24,16 +24,13 @@ Service to ingest images or LFA objects into per-bucket Butler repos.
 """
 import json
 import os
-import re
 import socket
 import time
 
 import astropy.io.fits
 import requests
 from lsst.daf.butler import Butler
-from lsst.pipe.base import Instrument
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
-from lsst.obs.lsst import PhotodiodeIngestTask
 from lsst.resources import ResourcePath
 
 from info import Info
@@ -203,18 +200,7 @@ def main():
         on_metadata_failure=on_metadata_failure,
     )
 
-    if is_lfa:
-        # LSSTCam photodiode is copy mode only.
-        instrument = Instrument.from_string("LSSTCam", butler.registry)
-        lsstcam_photodiode_ingester = PhotodiodeIngestTask(
-            config=PhotodiodeIngestTask.ConfigClass(),
-            butler=butler,
-            instrument=instrument,
-            on_success=on_success,
-            on_ingest_failure=on_ingest_failure,
-            on_metadata_failure=on_metadata_failure,
-        )
-    else:
+    if not is_lfa:
         define_visits_config = DefineVisitsTask.ConfigClass()
         define_visits_config.groupExposures = "one-to-one"
         visit_definer = DefineVisitsTask(config=define_visits_config, butler=butler)
@@ -234,15 +220,6 @@ def main():
 
                 logger.info("Ingesting %s", resources)
                 refs = None
-                if is_lfa:
-                    resources_photodiode = []
-                    resources_others = []
-                    for resource in resources:
-                        if re.search(r"MTCamera/photodiode.*_photodiode.ecsv", resource):
-                            resources_photodiode.append(resource)
-                        else:
-                            resources_others.append(resource)
-                    resources = resources_others
                 try:
                     refs = ingester.run(resources)
                 except Exception:
@@ -255,22 +232,6 @@ def main():
                             logger.exception("Error while ingesting %s", resource)
                             info = Info.from_path(resource.geturl())
                             r.lrem(worker_queue, 0, info.path)
-
-                if is_lfa and resources_photodiode:
-                    try:
-                        refs = lsstcam_photodiode_ingester.run(resources_photodiode)
-                    except Exception:
-                        logger.exception(
-                            "Error while ingesting %s, retrying one by one", resources_photodiode
-                        )
-                        refs = []
-                        for resource in resources_photodiode:
-                            try:
-                                refs.extend(lsstcam_photodiode_ingester.run([resource]))
-                            except Exception:
-                                logger.exception("Error while ingesting %s", resource)
-                                info = Info.from_path(resource.geturl())
-                                r.lrem(worker_queue, 0, info.path)
 
                 # Define visits if we ingested anything
                 if not is_lfa and refs:
