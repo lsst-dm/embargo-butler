@@ -174,10 +174,17 @@ def record_groups(resources: list[ResourcePath]) -> None:
                         instrument = "LSSTCam"
                     case "latiss":
                         instrument = "LATISS"
+                    case _:
+                        logger.warning(f"Unknown header INSTRUME {instrument} --- assume it is LSSTCam-imSim")
+                        instrument = "LSSTCam-imSim"
                 if "GROUPID" in header:
                     groupid = header["GROUPID"]
-                    snap_number = int(header["CURINDEX"]) - 1
-                    detector = header["RAFTBAY"] + "_" + header["CCDSLOT"]
+                    if instrument == "LSSTCam-imSim":
+                        snap_number = 0
+                        detector = header["CHIPID"]
+                    else:
+                        snap_number = int(header["CURINDEX"]) - 1
+                        detector = header["RAFTBAY"] + "_" + header["CCDSLOT"]
                     key = f"GROUP:{instrument}:{groupid}:{snap_number}:{detector}"
                     pipe.set(key, str(res))
                     pipe.expire(key, group_lifetime)

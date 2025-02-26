@@ -60,7 +60,14 @@ def presence(instrument: str, group_name: str, snap_index: int, detector_name: s
     """
 
     try:
-        if instrument not in ("LATISS", "LSSTComCam", "LSSTComCamSim", "LSSTCam", "LSST-TS8"):
+        if instrument not in (
+            "LATISS",
+            "LSSTComCam",
+            "LSSTComCamSim",
+            "LSSTCam",
+            "LSST-TS8",
+            "LSSTCam-imSim",
+        ):
             return ({"error": True, "message": f"Unknown instrument {instrument}"}, 400)
         if not re.match(r"R\d\d_S\d\d", detector_name):
             return ({"error": True, "message": f"Unrecognized detector name {detector_name}"}, 400)
