@@ -111,14 +111,19 @@ class ExposureInfo(Info):
                 self.exp_id,
                 self.filename,
             ) = path.split("/")
-            (
-                self.instrument_code,
-                self.controller,
-                obs_day,
-                self.seq_num,
-            ) = self.exp_id.split("_")
-            if obs_day != self.obs_day:
-                logger.warn("Mismatched observation dates: %s", path)
+            if self.instrument == "LSSTCam-imSim":
+                self.seq_num = int(self.exp_id) % 10000
+                self.instrument_code = "IS"
+                self.controller = "X"
+            else:
+                (
+                    self.instrument_code,
+                    self.controller,
+                    obs_day,
+                    self.seq_num,
+                ) = self.exp_id.split("_")
+                if obs_day != self.obs_day:
+                    logger.warn("Mismatched observation dates: %s", path)
         except Exception:
             logger.exception("Unable to parse: %s", path)
             raise
