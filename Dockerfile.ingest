@@ -24,7 +24,7 @@
 ARG RUBINENV_VERSION=10.0.0
 FROM ghcr.io/lsst-dm/docker-newinstall:9-latest-${RUBINENV_VERSION}
 ARG OBS_LSST_VERSION
-ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-d_2025_04_12}
+ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-d_2025_04_22}
 USER lsst
 RUN source loadLSST.bash && mamba install redis-py
 RUN source loadLSST.bash && eups distrib install -t "${OBS_LSST_VERSION}" lsst_obs
