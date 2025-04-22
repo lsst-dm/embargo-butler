@@ -76,6 +76,7 @@ def on_success(datasets):
     datasets: `list` [`lsst.daf.butler.FileDataset`]
         The successfully-ingested datasets.
     """
+    webhook_filenames = dict()
     for dataset in datasets:
         logger.info("Ingested %s", dataset)
         info = Info.from_path(dataset.path.geturl())
@@ -85,9 +86,13 @@ def on_success(datasets):
             pipe.hset(f"FILE:{info.path}", "ingest_time", str(time.time()))
             pipe.hincrby(f"INGEST:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
             pipe.execute()
-        if webhook_uri:
-            resp = requests.post(webhook_uri, json=info.__dict__, timeout=0.5)
-            logger.info("Webhook response: %s", resp)
+        if info.is_raw():
+            webhook_filenames.setdefault(info.exp_id, []).append(info.filename)
+    if webhook_uri:
+        for exp_id in webhook_filenames:
+            info_dict = {"exp_id": exp_id, "filenames": webhook_filenames[exp_id]}
+            resp = requests.post(webhook_uri, json=info_dict, timeout=0.5)
+            logger.info("Webhook response %s: %s", info_dict, resp)
 
 
 def on_ingest_failure(dataset, exc):
