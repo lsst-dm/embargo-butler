@@ -26,11 +26,13 @@ import json
 import os
 import socket
 import time
+from typing import Callable
 
 import astropy.io.fits
 import requests
-from lsst.daf.butler import Butler
+from lsst.daf.butler import Butler, DatasetRef
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
+from lsst.obs.lsst import ingest_guider
 from lsst.resources import ResourcePath
 
 from info import Info
@@ -82,9 +84,17 @@ def on_success(datasets):
         logger.debug("%s", info)
         with r.pipeline() as pipe:
             pipe.lrem(worker_queue, 0, info.path)
+            if info.is_raw():
+                if pipe.hsetnx("EXPSEEN", info.exp_id, str(time.time())):
+                    pipe.hexpire("EXPSEEN", 48 * 3600, info.exp_id)
             pipe.hset(f"FILE:{info.path}", "ingest_time", str(time.time()))
             pipe.hincrby(f"INGEST:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
             pipe.execute()
+        if info.is_raw():
+            wait_queue = f"EXPWAIT:{info.exp_id}"
+            if r.llen(wait_queue) > 0:
+                while r.lmove(wait_queue, worker_queue, "RIGHT", "LEFT"):
+                    pass
         if webhook_uri:
             resp = requests.post(webhook_uri, json=info.__dict__, timeout=0.5)
             logger.info("Webhook response: %s", resp)
@@ -186,8 +196,39 @@ def record_groups(resources: list[ResourcePath]) -> None:
         pipe.execute()
 
 
+def ingest_batch(
+    resources: list[ResourcePath], ingest_func: Callable[[list[ResourcePath]], list[DatasetRef]]
+) -> list[DatasetRef]:
+    refs = []
+    try:
+        refs.extend(ingest_func(resources))
+    except Exception:
+        logger.exception("Error while ingesting %s, retrying one by one", resources)
+        for resource in resources:
+            try:
+                refs.extend(ingest_func([resource]))
+            except Exception:
+                logger.exception("Error while ingesting %s", resource)
+                info = Info.from_path(resource.geturl())
+                r.lrem(worker_queue, 0, info.path)
+    return refs
+
+
+def guider_ingest(resources: list[ResourcePath]) -> list[DatasetRef]:
+    global butler
+    return ingest_guider(
+        butler,
+        resources,
+        transfer="direct",
+        on_success=on_success,
+        on_ingest_failure=on_ingest_failure,
+        on_metadata_failure=on_metadata_failure,
+    )
+
+
 def main():
     """Ingest FITS files from a Redis queue."""
+    global butler
     logger.info("Initializing Butler from %s", butler_repo)
     butler = Butler(butler_repo, writeable=True)
     ingest_config = RawIngestTask.ConfigClass()
@@ -219,19 +260,20 @@ def main():
                     record_groups(resources)
 
                 logger.info("Ingesting %s", resources)
-                refs = None
-                try:
-                    refs = ingester.run(resources)
-                except Exception:
-                    logger.exception("Error while ingesting %s, retrying one by one", resources)
-                    refs = []
-                    for resource in resources:
-                        try:
-                            refs.extend(ingester.run([resource]))
-                        except Exception:
-                            logger.exception("Error while ingesting %s", resource)
-                            info = Info.from_path(resource.geturl())
-                            r.lrem(worker_queue, 0, info.path)
+
+                normal_resources = []
+                guider_resources = []
+                for resource in resources:
+                    if resource.basename().endswith("_guider.fits"):
+                        guider_resources.append(resource)
+                    else:
+                        normal_resources.append(resource)
+
+                refs = []
+                if guider_resources:
+                    refs.extend(ingest_batch(guider_resources, guider_ingest))
+                if normal_resources:
+                    refs.extend(ingest_batch(normal_resources, ingester.run))
 
                 # Define visits if we ingested anything
                 if not is_lfa and refs:

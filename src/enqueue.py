@@ -65,8 +65,13 @@ def enqueue_objects(objects):
         for o in objects:
             if regexp.search(o):
                 info = Info.from_path(o)
-                pipe.lpush(f"QUEUE:{info.bucket}", o)
-                logger.info("Enqueued %s to %s", o, info.bucket)
+                if info.needs_exposure():
+                    if not r.hexists("EXPSEEN", info.exp_id):
+                        pipe.lpush(f"EXPWAIT:{info.exp_id}", o)
+                        logger.info("Wait for exposure %s: %s", info.exp_id, o)
+                else:
+                    pipe.lpush(f"QUEUE:{info.bucket}", o)
+                    logger.info("Enqueued %s to %s", o, info.bucket)
                 info_list.append(info)
         pipe.execute()
     return info_list

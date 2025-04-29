@@ -20,6 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import re
 from dataclasses import dataclass
 from typing import Self
 
@@ -74,6 +75,12 @@ class Info:
         else:
             return ExposureInfo(url)
 
+    def needs_exposure(self) -> bool:
+        return False
+
+    def is_raw(self) -> bool:
+        return False
+
 
 @dataclass
 class ExposureInfo(Info):
@@ -122,6 +129,12 @@ class ExposureInfo(Info):
         except Exception:
             logger.exception("Unable to parse: %s", path)
             raise
+
+    def needs_exposure(self) -> bool:
+        return self.filename.endswith("_guider.fits")
+
+    def is_raw(self) -> bool:
+        return bool(re.search(r"\d\.fits", self.filename))
 
 
 @dataclass
