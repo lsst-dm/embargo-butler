@@ -10,7 +10,9 @@ on:
         description: 'Science Pipelines release'
         required: true
         default: 'w_2024_12'
-
+      tag:
+        description: 'embargo-butler tag'
+        required: true
 
 env:
   INGEST_NAME: embargo-butler-ingest
@@ -23,7 +25,8 @@ jobs:
       contents: read
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      ref: "${{ inputs.tag }}"
 
     - name: Build ingest image
       run: |
@@ -41,13 +44,7 @@ jobs:
       run: |
         INGEST_ID=ghcr.io/${{ github.repository_owner }}/$INGEST_NAME
 
-        if [[ "${{ github.ref }}" == "refs/pull/"* ]]; then
-          VERSION=$(echo "${{ github.head_ref }}" | sed -e 's|.*/||')
-        elif [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
-          VERSION=$(echo "${{ github.ref_name }}" | sed -e 's|^v||')
-        else
-          VERSION=latest
-        fi
+        VERSION=$(echo "${{ inputs.tag }}" | sed -e 's|^v||')
         INGEST_VERSION="${VERSION}-${{ inputs.obsLsstVersion }}"
         echo INGEST_ID=$INGEST_ID
         echo VERSION=$VERSION
