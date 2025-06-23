@@ -29,4 +29,4 @@ COPY src/presence.py src/utils.py /presence/
 # REDIS_HOST REDIS_PASSWORD
 # optional:
 # DELETE_SEEN
-ENTRYPOINT [ "gunicorn", "-b", "0.0.0.0:8000", "-w", "2", "presence:app" ]
+ENTRYPOINT [ "gunicorn", "-b", "0.0.0.0:8000", "-w", "8", "presence:app" ]
