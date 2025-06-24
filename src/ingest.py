@@ -86,7 +86,7 @@ def on_success(datasets):
             pipe.hset(f"FILE:{info.path}", "ingest_time", str(time.time()))
             pipe.hincrby(f"INGEST:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
             pipe.execute()
-        if info.is_raw():
+        if not is_lfa:
             webhook_filenames.setdefault(info.exp_id, []).append(info.filename)
     if webhook_uri:
         for exp_id in webhook_filenames:
