@@ -26,6 +26,7 @@ import json
 import os
 import socket
 import time
+from collections import defaultdict
 
 import astropy.io.fits
 import requests
@@ -234,18 +235,16 @@ def main():
 
                 # Define visits if we ingested anything
                 if not is_lfa and refs:
-                    ids = [ref.dataId for ref in refs]
-                    try:
-                        visit_definer.run(ids, incremental=True)
-                        logger.info("Defined visits for %s", ids)
-                    except Exception:
-                        logger.exception("Error while defining visits for %s, retrying one by one", refs)
-                        for id in ids:
-                            try:
-                                visit_definer.run([id], incremental=True)
-                                logger.info("Defined visit for %s", id)
-                            except Exception:
-                                logger.exception("Error while defining visits for %s", id)
+                    id_dict = defaultdict(list)
+                    for ref in refs:
+                        data_id = ref.dataId
+                        id_dict[data_id["instrument"]].append(data_id)
+                    for ids in id_dict.values():
+                        try:
+                            visit_definer.run(ids, incremental=True)
+                            logger.info("Defined visits for %s", ids)
+                        except Exception:
+                            logger.exception("Error while defining visits for %s", refs)
                 if not is_lfa and rucio_rse:
                     # Register with Rucio if we ingested anything
                     try:
