@@ -66,6 +66,8 @@ if not is_lfa:
             dtn_url += "/"
         rucio_interface = RucioInterface(rucio_rse, dtn_url, bucket, os.environ["RUCIO_SCOPE"])
 
+success_refs = []
+
 
 def on_success(datasets):
     """Callback for successful ingest.
@@ -77,11 +79,14 @@ def on_success(datasets):
     datasets: `list` [`lsst.daf.butler.FileDataset`]
         The successfully-ingested datasets.
     """
+    global success_refs
+
     webhook_filenames = dict()
     for dataset in datasets:
         logger.info("Ingested %s", dataset)
         info = Info.from_path(dataset.path.geturl())
         logger.debug("%s", info)
+        success_refs.extend(dataset.refs)
         with r.pipeline() as pipe:
             pipe.lrem(worker_queue, 0, info.path)
             pipe.hset(f"FILE:{info.path}", "ingest_time", str(time.time()))
@@ -194,6 +199,8 @@ def record_groups(resources: list[ResourcePath]) -> None:
 
 def main():
     """Ingest FITS files from a Redis queue."""
+    global success_refs
+
     logger.info("Initializing Butler from %s", butler_repo)
     butler = Butler(butler_repo, writeable=True)
     ingest_config = RawIngestTask.ConfigClass()
@@ -225,18 +232,18 @@ def main():
                     record_groups(resources)
 
                 logger.info("Ingesting %s", resources)
-                refs = None
+                success_refs = []
                 try:
-                    refs = ingester.run(resources)
+                    success_refs = ingester.run(resources)
                 except RuntimeError:
                     pass
                 except Exception:
                     logger.exception("Error while ingesting %s")
 
                 # Define visits if we ingested anything
-                if not is_lfa and refs:
+                if not is_lfa and success_refs:
                     id_dict = defaultdict(list)
-                    for ref in refs:
+                    for ref in success_refs:
                         data_id = ref.dataId
                         id_dict[data_id["instrument"]].append(data_id)
                     for ids in id_dict.values():
@@ -244,7 +251,7 @@ def main():
                             visit_definer.run(ids, incremental=True)
                             logger.info("Defined visits for %s", ids)
                         except Exception:
-                            logger.exception("Error while defining visits for %s", refs)
+                            logger.exception("Error while defining visits for %s", success_refs)
                 if not is_lfa and rucio_rse:
                     # Register with Rucio if we ingested anything
                     try:
