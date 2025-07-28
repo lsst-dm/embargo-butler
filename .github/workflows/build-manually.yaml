@@ -5,11 +5,11 @@ on:
       rubinenvVersion:
         description: 'rubin-env version'
         required: true
-        default: '8.0.0'
+        default: '10.0.0'
       obsLsstVersion:
         description: 'Science Pipelines release'
         required: true
-        default: 'w_2024_12'
+        default: 'w_2025_29'
       tag:
         description: 'embargo-butler tag'
         required: true
