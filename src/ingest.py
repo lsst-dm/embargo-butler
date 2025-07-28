@@ -238,7 +238,7 @@ def main():
                 except RuntimeError:
                     pass
                 except Exception:
-                    logger.exception("Error while ingesting %s")
+                    logger.exception("Error while ingesting %s", resources)
 
                 # Define visits if we ingested anything
                 if not is_lfa and success_refs:
