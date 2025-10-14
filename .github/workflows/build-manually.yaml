@@ -5,7 +5,7 @@ on:
       rubinenvVersion:
         description: 'rubin-env version'
         required: true
-        default: '10.0.0'
+        default: '12.0.0'
       obsLsstVersion:
         description: 'Science Pipelines release'
         required: true
