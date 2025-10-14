@@ -22,6 +22,7 @@
 """
 Service to ingest images or LFA objects into per-bucket Butler repos.
 """
+
 import json
 import os
 import socket
@@ -79,7 +80,6 @@ def on_success(datasets):
     datasets: `list` [`lsst.daf.butler.FileDataset`]
         The successfully-ingested datasets.
     """
-    global success_refs
 
     webhook_filenames = dict()
     for dataset in datasets:
@@ -157,7 +157,6 @@ def record_groups(resources: list[ResourcePath]) -> None:
         The resources to record group ids from.
     """
 
-    global r, group_lifetime, logger
     with r.pipeline() as pipe:
         for res in resources:
             if not res.exists():
@@ -199,7 +198,6 @@ def record_groups(resources: list[ResourcePath]) -> None:
 
 def main():
     """Ingest FITS files from a Redis queue."""
-    global success_refs
 
     logger.info("Initializing Butler from %s", butler_repo)
     butler = Butler(butler_repo, writeable=True)
@@ -227,7 +225,6 @@ def main():
 
             # Ingest if we have resources
             if resources:
-
                 if not is_lfa:
                     record_groups(resources)
 
