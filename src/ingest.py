@@ -33,6 +33,7 @@ import astropy.io.fits
 import requests
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
+from lsst.obs.lsst import ingest_guider
 from lsst.resources import ResourcePath
 
 from info import Info
@@ -221,7 +222,9 @@ def main():
         # Process any entries on the worker queue.
         if r.llen(worker_queue) > 0:
             blobs = r.lrange(worker_queue, 0, -1)
-            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs]
+            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs if
+                         b"_guider" not in b]
+            guiders = [ResourcePath(f"s3://{b.decode()}") for b in blobs if b"_guider" in b]
 
             # Ingest if we have resources
             if resources:
@@ -232,6 +235,17 @@ def main():
                 success_refs = []
                 try:
                     success_refs = ingester.run(resources)
+                    if guiders:
+                        success_refs.extend(
+                            ingest_guider(
+                                butler,
+                                guiders,
+                                transfer="direct",
+                                on_success=on_success,
+                                on_ingest_failure=on_ingest_failure,
+                                on_metadata_failure=on_metadata_failure,
+                            )
+                        )
                 except RuntimeError:
                     pass
                 except Exception:
