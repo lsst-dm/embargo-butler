@@ -117,6 +117,31 @@ def on_ingest_failure(dataset, exc):
         r.lrem(worker_queue, 0, info.path)
 
 
+def on_guider_ingest_failure(datasets, exc):
+    """Callback for ingest failure.
+
+    Record statistics; give up on the dataset if it fails 3 times.
+
+    Parameters
+    ----------
+    datasets: `list` [ `lsst.daf.butler.FileDataset` ]
+        Raw guider datasets that failed ingest.
+    exc: `Exception`
+        Exception raised by the ingest failure.
+    """
+    for dataset in datasets:
+        logger.error("Failed to ingest %s: %s", dataset, exc)
+        info = Info.from_path(dataset.path.geturl())
+        logger.debug("%s", info)
+        with r.pipeline() as pipe:
+            pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+            pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
+            pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
+            pipe.execute()
+        if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= MAX_FAILURES:
+            r.lrem(worker_queue, 0, info.path)
+
+
 def on_metadata_failure(dataset, exc):
     """Callback for metadata parsing failure.
 
@@ -226,17 +251,6 @@ def main():
                 success_refs = []
                 try:
                     success_refs = ingester.run(resources)
-                    if guiders:
-                        success_refs.extend(
-                            ingest_guider(
-                                butler,
-                                guiders,
-                                transfer="direct",
-                                on_success=on_success,
-                                on_ingest_failure=on_ingest_failure,
-                                on_metadata_failure=on_metadata_failure,
-                            )
-                        )
                 except RuntimeError:
                     pass
                 except Exception:
@@ -254,6 +268,23 @@ def main():
                             logger.info("Defined visits for %s", ids)
                         except Exception:
                             logger.exception("Error while defining visits for %s", success_refs)
+
+            # Ingest if we have guiders
+            if guiders:
+                logger.info("Ingesting %s", guiders)
+                try:
+                    ingest_guider(
+                        butler,
+                        guiders,
+                        transfer="direct",
+                        on_success=on_success,
+                        on_ingest_failure=on_guider_ingest_failure,
+                        on_metadata_failure=on_metadata_failure,
+                    )
+                except RuntimeError:
+                    pass
+                except Exception:
+                    logger.exception("Error while ingesting %s", guiders)
 
         # Atomically grab the next entry from the bucket queue, blocking until
         # one exists.
