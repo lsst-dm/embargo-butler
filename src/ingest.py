@@ -89,8 +89,12 @@ def on_success(datasets):
     if webhook_uri:
         for exp_id in webhook_filenames:
             info_dict = {"exp_id": exp_id, "filenames": webhook_filenames[exp_id]}
-            resp = requests.post(webhook_uri, json=info_dict, timeout=0.5)
-            logger.info("Webhook response %s: %s", info_dict, resp)
+            try:
+                resp = requests.post(webhook_uri, json=info_dict, timeout=0.5)
+                logger.info("Webhook response %s: %s", info_dict, resp)
+            except Exception:
+                # Ignore webhook exceptions
+                logger.exception("Webhook exception for %s", info_dict)
 
 
 def on_ingest_failure(dataset, exc):
