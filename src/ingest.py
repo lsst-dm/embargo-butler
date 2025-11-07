@@ -118,7 +118,9 @@ def on_ingest_failure(dataset, exc):
 
 
 def on_guider_ingest_failure(datasets, exc):
-    """Callback for ingest failure.
+    """Callback for guider ingest failure.
+
+    Sleep for 0.5 sec to wait for science CCDs to arrive.
 
     Record statistics; give up on the dataset if it fails 3 times.
 
@@ -131,6 +133,7 @@ def on_guider_ingest_failure(datasets, exc):
     """
     for dataset in datasets:
         logger.error("Failed to ingest %s: %s", dataset, exc)
+        time.sleep(0.5)
         info = Info.from_path(dataset.path.geturl())
         logger.debug("%s", info)
         with r.pipeline() as pipe:
