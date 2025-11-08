@@ -257,7 +257,9 @@ def main():
                 logger.info("Ingesting %s", resources)
                 success_refs = []
                 try:
-                    success_refs = ingester.run(resources)
+                    success_refs = ingester.run(
+                        resources, skip_existing_exposures=True
+                    )
                 except RuntimeError:
                     pass
                 except Exception:
