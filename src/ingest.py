@@ -78,7 +78,6 @@ def on_success(datasets):
         logger.info("Ingested %s", dataset)
         info = Info.from_path(dataset.path.geturl())
         logger.debug("%s", info)
-        success_refs.extend(dataset.refs)
         with r.pipeline() as pipe:
             pipe.lrem(worker_queue, 0, info.path)
             pipe.hset(f"FILE:{info.path}", "ingest_time", str(time.time()))
@@ -257,13 +256,17 @@ def main():
                 logger.info("Ingesting %s", resources)
                 success_refs = []
                 try:
-                    success_refs = ingester.run(
-                        resources, skip_existing_exposures=True
-                    )
+                    success_refs = ingester.run(resources)
                 except RuntimeError:
                     pass
                 except Exception:
                     logger.exception("Error while ingesting %s", resources)
+                    # Retry one by one
+                    for resource in resources:
+                        try:
+                            success_refs.extend(ingester.run([resource]))
+                        except Exception:
+                            logger.exception("Error while ingesting %s", resource)
 
                 # Define visits if we ingested anything
                 if not is_lfa and success_refs:
