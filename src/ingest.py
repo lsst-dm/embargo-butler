@@ -258,15 +258,14 @@ def main():
                 try:
                     success_refs = ingester.run(resources)
                 except RuntimeError:
-                    pass
-                except Exception:
-                    logger.exception("Error while ingesting %s", resources)
                     # Retry one by one
                     for resource in resources:
                         try:
                             success_refs.extend(ingester.run([resource]))
                         except Exception:
                             logger.exception("Error while ingesting %s", resource)
+                except Exception:
+                    logger.exception("Error while ingesting %s", resources)
 
                 # Define visits if we ingested anything
                 if not is_lfa and success_refs:
