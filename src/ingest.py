@@ -244,8 +244,7 @@ def main():
         # Process any entries on the worker queue.
         if r.llen(worker_queue) > 0:
             blobs = r.lrange(worker_queue, 0, -1)
-            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs if
-                         b"_guider" not in b]
+            resources = [ResourcePath(f"s3://{b.decode()}") for b in blobs if b"_guider" not in b]
             guiders = [ResourcePath(f"s3://{b.decode()}") for b in blobs if b"_guider" in b]
 
             # Ingest if we have resources
@@ -297,11 +296,15 @@ def main():
                 except Exception:
                     logger.exception("Error while ingesting %s", guiders)
 
-        # Atomically grab the next entry from the bucket queue, blocking until
-        # one exists.
-        r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
-        # Be greedy and take as many entries as exist up to max
+        # If we have any retries, don't wait for new images
         n = r.llen(worker_queue)
+        if n == 0:
+            # Atomically grab the next entry from the bucket queue, blocking
+            # until one exists.
+            r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
+            n = 1
+
+        # Be greedy and take as many entries as exist up to max
         while n < max_ingests and r.lmove(redis_queue, worker_queue, "RIGHT", "LEFT"):
             n += 1
 
