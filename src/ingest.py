@@ -39,8 +39,8 @@ from lsst.resources import ResourcePath
 from info import Info
 from utils import setup_logging, setup_redis
 
-MAX_FAILURES: int = 3
-"""Retry ingests until this many failures (`int`)."""
+max_failures = int(os.environ.get("MAX_FAILURES", "3"))
+"""Retry ingests until this many failures."""
 
 max_ingests = int(os.environ.get("MAX_INGESTS", "10"))
 """Accept up to this many files to ingest at once."""
@@ -116,7 +116,7 @@ def on_ingest_failure(dataset, exc):
         pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
         pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
         pipe.execute()
-    if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= MAX_FAILURES:
+    if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
         r.lrem(worker_queue, 0, info.path)
 
 
@@ -144,7 +144,7 @@ def on_guider_ingest_failure(datasets, exc):
             pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
             pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
             pipe.execute()
-        if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= MAX_FAILURES:
+        if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
             r.lrem(worker_queue, 0, info.path)
 
 
