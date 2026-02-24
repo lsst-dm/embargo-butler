@@ -292,7 +292,8 @@ def main():
                         on_metadata_failure=on_metadata_failure,
                     )
                 except RuntimeError:
-                    pass
+                    # Wait for a science image to show up
+                    time.sleep(0.5)
                 except Exception:
                     logger.exception("Error while ingesting %s", guiders)
 
