@@ -96,32 +96,33 @@ def on_success(datasets):
                 logger.exception("Webhook exception for %s", info_dict)
 
 
-def on_ingest_failure(dataset, exc):
+def on_ingest_failure(exposure_data, exc):
     """Callback for ingest failure.
 
     Record statistics; give up on the dataset if it fails 3 times.
 
     Parameters
     ----------
-    dataset: `lsst.obs.base.ingest.RawFileData`
-        Raw dataset that failed ingest.
+    exposure_data: `lsst.obs.base.ingest.RawExposureData`
+        Information about raw datasets that failed ingest.
     exc: `Exception`
         Exception raised by the ingest failure.
     """
-    logger.error("Failed to ingest %s: %s", dataset, exc)
-    info = Info.from_path(dataset.files[0].filename.geturl())
-    logger.debug("%s", info)
-    if "Datastore already contains" in str(exc):
-        # Don't retry these
-        r.lrem(worker_queue, 0, info.path)
-        return
-    with r.pipeline() as pipe:
-        pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
-        pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
-        pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
-        pipe.execute()
-    if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
-        r.lrem(worker_queue, 0, info.path)
+    logger.error("Failed to ingest %s: %s", exposure_data, exc)
+    for f in exposure_data.files:
+        info = Info.from_path(f.filename.geturl())
+        logger.debug("%s", info)
+        if "Datastore already contains" in str(exc):
+            # Don't retry these
+            r.lrem(worker_queue, 0, info.path)
+            continue
+        with r.pipeline() as pipe:
+            pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+            pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
+            pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
+            pipe.execute()
+        if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
+            r.lrem(worker_queue, 0, info.path)
 
 
 def on_guider_ingest_failure(datasets, exc):
