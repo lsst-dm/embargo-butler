@@ -111,6 +111,10 @@ def on_ingest_failure(dataset, exc):
     logger.error("Failed to ingest %s: %s", dataset, exc)
     info = Info.from_path(dataset.files[0].filename.geturl())
     logger.debug("%s", info)
+    if "Datastore already contains" in str(exc):
+        # Don't retry these
+        r.lrem(worker_queue, 0, info.path)
+        return
     with r.pipeline() as pipe:
         pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
         pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
@@ -134,11 +138,15 @@ def on_guider_ingest_failure(datasets, exc):
     exc: `Exception`
         Exception raised by the ingest failure.
     """
+    retries = False
     for dataset in datasets:
         logger.error("Failed to ingest %s: %s", dataset, exc)
-        time.sleep(0.5)
         info = Info.from_path(dataset.path.geturl())
         logger.debug("%s", info)
+        if "Datastore already contains" in str(exc):
+            # Don't retry these
+            r.lrem(worker_queue, 0, info.path)
+            continue
         with r.pipeline() as pipe:
             pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
             pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
@@ -146,6 +154,10 @@ def on_guider_ingest_failure(datasets, exc):
             pipe.execute()
         if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
             r.lrem(worker_queue, 0, info.path)
+        else:
+            retries = True
+    if retries:
+        time.sleep(0.5)
 
 
 def on_metadata_failure(dataset, exc):
