@@ -62,6 +62,10 @@ worker_queue = f"WORKER:{bucket}:{worker_name}"
 success_refs = []
 
 
+class _DuplicateIngestError(RuntimeError):
+    pass
+
+
 def on_success(datasets):
     """Callback for successful ingest.
 
@@ -117,7 +121,7 @@ def on_ingest_failure(exposure_data, exc):
         logger.info("Already ingested %s", info.path)
         # Don't retry these
         r.lrem(worker_queue, 0, info.path)
-        return
+        raise _DuplicateIngestError
     logger.warning("Marking for retry %s", info.path)
     with r.pipeline() as pipe:
         pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
@@ -152,7 +156,7 @@ def on_guider_ingest_failure(datasets, exc):
         logger.info("Already ingested %s", info.path)
         # Don't retry these
         r.lrem(worker_queue, 0, info.path)
-        return
+        raise _DuplicateIngestError
     logger.warning("Marking for retry %s", info.path)
     with r.pipeline() as pipe:
         pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
@@ -283,6 +287,8 @@ def main():
                     for resource in resources:
                         try:
                             success_refs.extend(one_by_one_ingester.run([resource]))
+                        except _DuplicateIngestError:
+                            pass
                         except Exception:
                             logger.exception("Error while ingesting %s", resource)
                 except Exception:
@@ -325,6 +331,8 @@ def main():
                                 on_ingest_failure=on_guider_ingest_failure,
                                 on_metadata_failure=on_metadata_failure,
                             )
+                        except _DuplicateIngestError:
+                            pass
                         except Exception:
                             logger.exception("Error while ingesting %s", guider)
                             retries = True
