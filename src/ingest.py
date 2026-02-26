@@ -42,6 +42,9 @@ from utils import setup_logging, setup_redis
 max_failures = int(os.environ.get("MAX_FAILURES", "3"))
 """Retry ingests until this many failures."""
 
+max_guider_wait = float(os.environ.get("MAX_GUIDER_WAIT", "5.0"))
+"""Wait this long for science images to arrive after guiders."""
+
 max_ingests = int(os.environ.get("MAX_INGESTS", "10"))
 """Accept up to this many files to ingest at once."""
 
@@ -60,9 +63,14 @@ worker_name = socket.gethostname()
 worker_queue = f"WORKER:{bucket}:{worker_name}"
 
 success_refs = []
+retry_guider_obsids = dict()
 
 
 class _DuplicateIngestError(RuntimeError):
+    pass
+
+
+class _UndefinedExposureError(RuntimeError):
     pass
 
 
@@ -89,6 +97,9 @@ def on_success(datasets):
             pipe.execute()
         if not is_lfa:
             webhook_filenames.setdefault(info.exp_id, []).append(info.filename)
+        # If we ingested something, guiders should now be able to be ingested.
+        if info.exp_id in retry_guider_obsids:
+            del retry_guider_obsids[info.exp_id]
     if webhook_uri:
         for exp_id in webhook_filenames:
             info_dict = {"exp_id": exp_id, "filenames": webhook_filenames[exp_id]}
@@ -136,8 +147,6 @@ def on_ingest_failure(exposure_data, exc):
 def on_guider_ingest_failure(datasets, exc):
     """Callback for guider ingest failure.
 
-    Sleep for 0.5 sec to wait for science CCDs to arrive.
-
     Record statistics; give up on the dataset if it fails 3 times.
 
     Parameters
@@ -166,6 +175,33 @@ def on_guider_ingest_failure(datasets, exc):
     if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
         logger.error("Giving up on %s", info.path)
         r.lrem(worker_queue, 0, info.path)
+
+
+def on_undefined_exposure(resource, obs_id):
+    """Callback for undefined exposure while ingesting guiders.
+
+    Don't do normal retry processing for these
+
+    Parameters
+    ----------
+    resource: `lsst.resources.ResourcePath`
+        Raw guider dataset that failed ingest.
+    obs_id: `str`
+        Observation id for which no exposure record was found.
+    """
+    # No need to log; ingest_guider does that already
+    if obs_id not in retry_guider_obsids:
+        retry_guider_obsids[obs_id] = time.time()
+    if retry_guider_obsids[obs_id] + max_guider_wait <= time.time():
+        info = Info.from_path(resource.geturl())
+        with r.pipeline() as pipe:
+            pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+            pipe.hset(f"FILE:{info.path}", "ing_fail_exc", "Max wait")
+            pipe.execute()
+        logger.error("Giving up on %s", info.path)
+        r.lrem(worker_queue, 0, info.path)
+        del retry_guider_obsids[obs_id]
+    raise _UndefinedExposureError
 
 
 def on_metadata_failure(dataset, exc):
@@ -329,13 +365,15 @@ def main():
                                 transfer="direct",
                                 on_success=on_success,
                                 on_ingest_failure=on_guider_ingest_failure,
+                                on_undefined_exposure=on_undefined_exposure,
                                 on_metadata_failure=on_metadata_failure,
                             )
                         except _DuplicateIngestError:
                             pass
+                        except _UndefinedExposureError:
+                            retries = True
                         except Exception:
                             logger.exception("Error while ingesting %s", guider)
-                            retries = True
                     if retries:
                         # Wait for a science image to show up
                         time.sleep(0.5)
