@@ -108,21 +108,25 @@ def on_ingest_failure(exposure_data, exc):
     exc: `Exception`
         Exception raised by the ingest failure.
     """
-    logger.error("Failed to ingest %s: %s", exposure_data, exc)
-    for f in exposure_data.files:
-        info = Info.from_path(f.filename.geturl())
-        logger.debug("%s", info)
-        if "Datastore already contains" in str(exc):
-            # Don't retry these
-            r.lrem(worker_queue, 0, info.path)
-            continue
-        with r.pipeline() as pipe:
-            pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
-            pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
-            pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
-            pipe.execute()
-        if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
-            r.lrem(worker_queue, 0, info.path)
+    assert len(exposure_data.files) == 1
+    logger.info("Failed to ingest %s: %s", exposure_data, exc)
+    f = exposure_data.files[0]
+    info = Info.from_path(f.filename.geturl())
+    logger.debug("%s", info)
+    if "Datastore already contains" in str(exc):
+        logger.info("Already ingested %s", info.path)
+        # Don't retry these
+        r.lrem(worker_queue, 0, info.path)
+        return
+    logger.warning("Marking for retry %s", info.path)
+    with r.pipeline() as pipe:
+        pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+        pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
+        pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
+        pipe.execute()
+    if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
+        logger.error("Giving up on %s", info.path)
+        r.lrem(worker_queue, 0, info.path)
 
 
 def on_guider_ingest_failure(datasets, exc):
@@ -139,26 +143,25 @@ def on_guider_ingest_failure(datasets, exc):
     exc: `Exception`
         Exception raised by the ingest failure.
     """
-    retries = False
-    for dataset in datasets:
-        logger.error("Failed to ingest %s: %s", dataset, exc)
-        info = Info.from_path(dataset.path.geturl())
-        logger.debug("%s", info)
-        if "Datastore already contains" in str(exc):
-            # Don't retry these
-            r.lrem(worker_queue, 0, info.path)
-            continue
-        with r.pipeline() as pipe:
-            pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
-            pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
-            pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
-            pipe.execute()
-        if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
-            r.lrem(worker_queue, 0, info.path)
-        else:
-            retries = True
-    if retries:
-        time.sleep(0.5)
+    assert len(datasets) == 1
+    dataset = datasets[0]
+    logger.info("Failed to ingest %s: %s", dataset, exc)
+    info = Info.from_path(dataset.path.geturl())
+    logger.debug("%s", info)
+    if "Datastore already contains" in str(exc):
+        logger.info("Already ingested %s", info.path)
+        # Don't retry these
+        r.lrem(worker_queue, 0, info.path)
+        return
+    logger.warning("Marking for retry %s", info.path)
+    with r.pipeline() as pipe:
+        pipe.hincrby(f"FAIL:{info.bucket}:{info.instrument}", f"{info.obs_day}", 1)
+        pipe.hset(f"FILE:{info.path}", "ing_fail_exc", str(exc))
+        pipe.hincrby(f"FILE:{info.path}", "ing_fail_count", 1)
+        pipe.execute()
+    if int(r.hget(f"FILE:{info.path}", "ing_fail_count")) >= max_failures:
+        logger.error("Giving up on %s", info.path)
+        r.lrem(worker_queue, 0, info.path)
 
 
 def on_metadata_failure(dataset, exc):
@@ -239,7 +242,13 @@ def main():
     butler = Butler(butler_repo, writeable=True)
     ingest_config = RawIngestTask.ConfigClass()
     ingest_config.transfer = "direct"
-    ingester = RawIngestTask(
+    batch_ingester = RawIngestTask(
+        config=ingest_config,
+        butler=butler,
+        on_success=on_success,
+        on_metadata_failure=on_metadata_failure,
+    )
+    one_by_one_ingester = RawIngestTask(
         config=ingest_config,
         butler=butler,
         on_success=on_success,
@@ -268,12 +277,12 @@ def main():
                 logger.info("Ingesting %s", resources)
                 success_refs = []
                 try:
-                    success_refs = ingester.run(resources)
+                    success_refs = batch_ingester.run(resources)
                 except RuntimeError:
                     # Retry one by one
                     for resource in resources:
                         try:
-                            success_refs.extend(ingester.run([resource]))
+                            success_refs.extend(one_by_one_ingester.run([resource]))
                         except Exception:
                             logger.exception("Error while ingesting %s", resource)
                 except Exception:
@@ -301,12 +310,27 @@ def main():
                         guiders,
                         transfer="direct",
                         on_success=on_success,
-                        on_ingest_failure=on_guider_ingest_failure,
                         on_metadata_failure=on_metadata_failure,
                     )
                 except RuntimeError:
-                    # Wait for a science image to show up
-                    time.sleep(0.5)
+                    # Retry one by one
+                    retries = False
+                    for guider in guiders:
+                        try:
+                            ingest_guider(
+                                butler,
+                                [guider],
+                                transfer="direct",
+                                on_success=on_success,
+                                on_ingest_failure=on_guider_ingest_failure,
+                                on_metadata_failure=on_metadata_failure,
+                            )
+                        except Exception:
+                            logger.exception("Error while ingesting %s", guider)
+                            retries = True
+                    if retries:
+                        # Wait for a science image to show up
+                        time.sleep(0.5)
                 except Exception:
                     logger.exception("Error while ingesting %s", guiders)
 
