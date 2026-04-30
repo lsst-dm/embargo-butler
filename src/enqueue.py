@@ -21,14 +21,20 @@
 
 """
 Enqueue service to post notifications to per-bucket queues.
+
+Consumes S3 ObjectCreated notifications that Ceph RGW publishes (as plain
+JSON) to a Kafka topic, and pushes the resulting object paths onto per-bucket
+Redis queues for the ingest workers.
 """
+import asyncio
+import json
 import os
 import re
 import time
 import urllib.parse
 
+import aiokafka
 import redis
-from flask import Flask, request
 
 from info import ExposureInfo, Info
 from utils import setup_logging, setup_redis
@@ -38,7 +44,6 @@ FILE_RETENTION: float = 7 * 24 * 60 * 60
 
 logger = setup_logging(__name__)
 r = setup_redis()
-notification_secret = os.environ["NOTIFICATION_SECRET"]
 regexp = re.compile(os.environ.get("DATASET_REGEXP", r"fits$"))
 profile = os.environ.get("PROFILE", "")
 if profile != "":
@@ -49,7 +54,9 @@ def enqueue_objects(objects):
     """Enqueue objects onto per-bucket queues.
 
     Compute the `Info` for each object with a selected extension and return
-    the list.
+    the list.  Paths that have already been enqueued within the
+    ``FILE_RETENTION`` window are skipped, so Kafka redeliveries (rebalance,
+    pod restart) and operator re-trigger tooling do not double-enqueue.
 
     Parameters
     ----------
@@ -63,11 +70,17 @@ def enqueue_objects(objects):
     # Use a pipeline for efficiency.
     with r.pipeline() as pipe:
         for o in objects:
-            if regexp.search(o):
-                info = Info.from_path(o)
-                pipe.lpush(f"QUEUE:{info.bucket}", o)
-                logger.info("Enqueued %s to %s", o, info.bucket)
-                info_list.append(info)
+            if not regexp.search(o):
+                continue
+            # SET NX EX is the dedupe guard; pipeline can't conditionally
+            # enqueue, so this is a separate round trip per matched object.
+            if not r.set(f"ENQ:{o}", "1", nx=True, ex=int(FILE_RETENTION)):
+                logger.info("Skipping duplicate enqueue %s", o)
+                continue
+            info = Info.from_path(o)
+            pipe.lpush(f"QUEUE:{info.bucket}", o)
+            logger.info("Enqueued %s to %s", o, info.bucket)
+            info_list.append(info)
         pipe.execute()
     return info_list
 
@@ -111,19 +124,94 @@ def update_stats(info_list):
                     continue
 
 
-app = Flask(__name__)
+def object_names_from_notification(payload):
+    """Extract object names from an S3 bucket notification message.
 
+    Ceph RGW publishes notifications to Kafka as plain JSON in the standard
+    S3 event-notification schema.  Records that aren't ``ObjectCreated*`` are
+    skipped, as are records that are missing required fields.
 
-@app.post("/notify")
-def notify():
+    Parameters
+    ----------
+    payload: `bytes` or `str`
+        The raw Kafka message value.
+
+    Returns
+    -------
+    object_names: `list` [`str`]
+        ``profile + bucket + "/" + key`` strings ready for `Info.from_path`.
+    """
     object_names = []
-    for r in request.json["Records"]:
-        if r["opaqueData"] != notification_secret:
-            logger.info("Unrecognized secret %s", r["opaqueData"])
+    msg = json.loads(payload)
+    for record in msg.get("Records", []):
+        if not record.get("eventName", "").startswith("ObjectCreated"):
             continue
-        object_names.append(
-            profile + r["s3"]["bucket"]["name"] + "/" + urllib.parse.unquote_plus(r["s3"]["object"]["key"])
-        )
-    info_list = enqueue_objects(object_names)
-    update_stats(info_list)
-    return info_list
+        try:
+            bucket = record["s3"]["bucket"]["name"]
+            key = urllib.parse.unquote_plus(record["s3"]["object"]["key"])
+        except (KeyError, TypeError):
+            logger.exception("Invalid S3 notification record: %s", record)
+            continue
+        object_names.append(profile + bucket + "/" + key)
+    return object_names
+
+
+async def main():
+    """Consume S3 notifications from Kafka and enqueue objects on Redis.
+
+    Offsets are committed manually after a message has been successfully
+    processed (parse + ``enqueue_objects`` + ``update_stats``).  Parse-stage
+    failures (malformed JSON, ``None`` tombstone) are treated as poison pills
+    and committed so they don't block the partition; process-stage failures
+    (e.g. Redis errors) deliberately leave the offset uncommitted so the
+    message is redelivered on the next poll or after a pod restart.
+    """
+    consumer = aiokafka.AIOKafkaConsumer(
+        os.environ["KAFKA_TOPIC"],
+        bootstrap_servers=os.environ["KAFKA_CLUSTER"],
+        group_id=os.environ.get("KAFKA_GROUP_ID", "embargo-butler-enqueue"),
+        auto_offset_reset=os.environ.get("KAFKA_OFFSET_RESET", "latest"),
+        enable_auto_commit=False,
+    )
+    await consumer.start()
+    logger.info(
+        "Kafka consumer started: topic=%s cluster=%s group=%s",
+        os.environ["KAFKA_TOPIC"],
+        os.environ["KAFKA_CLUSTER"],
+        os.environ.get("KAFKA_GROUP_ID", "embargo-butler-enqueue"),
+    )
+    try:
+        async for msg in consumer:
+            try:
+                object_names = object_names_from_notification(msg.value)
+            except (AttributeError, TypeError, ValueError, UnicodeDecodeError):
+                logger.exception(
+                    "Skipping malformed Kafka message topic=%s partition=%s offset=%s",
+                    msg.topic,
+                    msg.partition,
+                    msg.offset,
+                )
+                await consumer.commit()
+                continue
+
+            try:
+                if object_names:
+                    info_list = enqueue_objects(object_names)
+                    update_stats(info_list)
+            except Exception:
+                logger.exception(
+                    "Failed to enqueue Kafka message topic=%s partition=%s offset=%s; "
+                    "leaving offset uncommitted for redelivery",
+                    msg.topic,
+                    msg.partition,
+                    msg.offset,
+                )
+                continue
+
+            await consumer.commit()
+    finally:
+        await consumer.stop()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
