@@ -42,6 +42,16 @@ from utils import setup_logging, setup_redis
 FILE_RETENTION: float = 7 * 24 * 60 * 60
 """Time in seconds to remember information about specific FITS files."""
 
+ENQUEUE_DEDUPE_TTL: int = 24 * 60 * 60
+"""Time in seconds an ``ENQ:<path>`` dedupe marker survives.
+
+Matches the Kafka topic retention so Kafka redeliveries (rebalance, restart-
+with-uncommitted-offset) are always deduped, while operators can force a
+re-enqueue of an older path either by waiting out the window or by deleting
+the ``ENQ:<path>`` key explicitly (see the manual trigger script's
+``--force`` flag in ``usdf-embargo-deploy``).
+"""
+
 logger = setup_logging(__name__)
 r = setup_redis()
 regexp = re.compile(os.environ.get("DATASET_REGEXP", r"fits$"))
@@ -55,8 +65,9 @@ def enqueue_objects(objects):
 
     Compute the `Info` for each object with a selected extension and return
     the list.  Paths that have already been enqueued within the
-    ``FILE_RETENTION`` window are skipped, so Kafka redeliveries (rebalance,
-    pod restart) and operator re-trigger tooling do not double-enqueue.
+    ``ENQUEUE_DEDUPE_TTL`` window are skipped, so Kafka redeliveries
+    (rebalance, pod restart) and operator re-trigger tooling do not
+    double-enqueue.
 
     Parameters
     ----------
@@ -74,7 +85,7 @@ def enqueue_objects(objects):
                 continue
             # SET NX EX is the dedupe guard; pipeline can't conditionally
             # enqueue, so this is a separate round trip per matched object.
-            if not r.set(f"ENQ:{o}", "1", nx=True, ex=int(FILE_RETENTION)):
+            if not r.set(f"ENQ:{o}", "1", nx=True, ex=ENQUEUE_DEDUPE_TTL):
                 logger.info("Skipping duplicate enqueue %s", o)
                 continue
             info = Info.from_path(o)
