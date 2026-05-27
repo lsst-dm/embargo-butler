@@ -60,37 +60,47 @@ if profile != "":
     profile += "@"
 
 
-def enqueue_objects(objects):
-    """Enqueue objects onto per-bucket queues.
+def enqueue_objects(object_names):
+    """Enqueue object paths onto per-bucket Redis queues.
 
-    Compute the `Info` for each object with a selected extension and return
-    the list.  Paths that have already been enqueued within the
-    ``ENQUEUE_DEDUPE_TTL`` window are skipped, so Kafka redeliveries
-    (rebalance, pod restart) and operator re-trigger tooling do not
-    double-enqueue.
+    For each path that matches the ``DATASET_REGEXP`` filter (default
+    ``fits$``), compute its `Info`, push the path onto ``QUEUE:<bucket>``
+    for the ingest workers, and accumulate the resulting `Info` for the
+    returned list.  Paths not matching the regexp are silently skipped, as
+    are paths whose ``ENQ:<path>`` dedupe marker is still live (set with
+    ``ENQUEUE_DEDUPE_TTL``), so Kafka redeliveries (rebalance, pod
+    restart) and operator re-trigger tooling do not double-enqueue.
 
     Parameters
     ----------
-    objects: `list` [`str`]
+    object_names: `list` [`str`]
+        S3 object paths of the form ``[profile@]bucket/key`` -- i.e. the
+        notification's bucket name and object key joined with ``"/"`` and
+        optionally prefixed with the configured ``PROFILE@``, as produced
+        by `object_names_from_notification` and consumed by
+        `Info.from_path`.
 
     Returns
     -------
     info_list: `list` [`Info`]
+        One `Info` per object that was newly enqueued (regexp-matched and
+        not a duplicate).  Objects filtered out by the regexp or the
+        dedupe guard do not appear in this list.
     """
     info_list = []
     # Use a pipeline for efficiency.
     with r.pipeline() as pipe:
-        for o in objects:
-            if not regexp.search(o):
+        for name in object_names:
+            if not regexp.search(name):
                 continue
             # SET NX EX is the dedupe guard; pipeline can't conditionally
             # enqueue, so this is a separate round trip per matched object.
-            if not r.set(f"ENQ:{o}", "1", nx=True, ex=ENQUEUE_DEDUPE_TTL):
-                logger.info("Skipping duplicate enqueue %s", o)
+            if not r.set(f"ENQ:{name}", "1", nx=True, ex=ENQUEUE_DEDUPE_TTL):
+                logger.info("Skipping duplicate enqueue %s", name)
                 continue
-            info = Info.from_path(o)
-            pipe.lpush(f"QUEUE:{info.bucket}", o)
-            logger.info("Enqueued %s to %s", o, info.bucket)
+            info = Info.from_path(name)
+            pipe.lpush(f"QUEUE:{info.bucket}", name)
+            logger.info("Enqueued %s to %s", name, info.bucket)
             info_list.append(info)
         pipe.execute()
     return info_list
