@@ -22,11 +22,11 @@
 # Dockerfile for enqueue service.
 
 FROM python:3.11
-RUN pip install redis gunicorn flask
+RUN pip install redis aiokafka
 WORKDIR /enqueue
 COPY src/enqueue.py src/info.py src/utils.py /enqueue/
 # environment variables that must be set:
-# REDIS_HOST REDIS_PASSWORD NOTIFICATION_SECRET
+# REDIS_HOST REDIS_PASSWORD KAFKA_CLUSTER KAFKA_TOPIC
 # optional:
-# DATASET_REGEXP
-ENTRYPOINT [ "gunicorn", "-b", "0.0.0.0:8000", "-w", "2", "enqueue:app" ]
+# DATASET_REGEXP PROFILE KAFKA_GROUP_ID KAFKA_OFFSET_RESET
+ENTRYPOINT [ "python", "enqueue.py" ]
