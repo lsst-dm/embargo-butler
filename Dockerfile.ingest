@@ -21,7 +21,7 @@
 
 # Dockerfile for ingest service.
 
-ARG RUBINENV_VERSION=12.1.0
+ARG RUBINENV_VERSION=13.0.0
 FROM ghcr.io/lsst-dm/docker-newinstall:9-latest-${RUBINENV_VERSION}
 ARG OBS_LSST_VERSION
 ENV OBS_LSST_VERSION=${OBS_LSST_VERSION:-w_2026_22}
