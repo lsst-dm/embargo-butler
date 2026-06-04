@@ -29,6 +29,7 @@ import socket
 import time
 
 import astropy.io.fits
+import redis
 import requests
 from lsst.daf.butler import Butler
 from lsst.obs.base import DefineVisitsTask, RawIngestTask
@@ -386,8 +387,18 @@ def main():
         n = r.llen(worker_queue)
         if n == 0:
             # Atomically grab the next entry from the bucket queue, blocking
-            # until one exists.
-            r.blmove(redis_queue, worker_queue, 0, "RIGHT", "LEFT")
+            # until one exists.  A finite block timeout is required rather than
+            # an infinite BLMOVE: redis-py >= 5 (shipped in lsst-scipipe-13)
+            # enforces a socket read timeout on blocking commands, so an
+            # infinite BLMOVE (timeout=0) raises TimeoutError on an idle queue.
+            # Retry on both the None (timeout expiry) and TimeoutError results
+            # until an entry arrives.
+            while True:
+                try:
+                    if r.blmove(redis_queue, worker_queue, 5, "RIGHT", "LEFT") is not None:
+                        break
+                except redis.exceptions.TimeoutError:
+                    continue
             n = 1
 
         # Be greedy and take as many entries as exist up to max
